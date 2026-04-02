@@ -1,9 +1,23 @@
 const express = require('express');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
+const { rateLimit } = require('express-rate-limit');
 const { pool } = require('../db/index');
 
 const router = express.Router();
+
+// Rate limiter: max 3 Discord OAuth attempts per IP per 15 minutes
+// Prevents Cloudflare 1015 rate limit errors caused by rapid repeated auth requests
+const discordAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please wait 15 minutes and try again.' },
+  handler: (req, res) => {
+    res.redirect(`${process.env.CLIENT_URL}?auth_error=rate_limited`);
+  }
+});
 
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((obj, done) => done(null, obj));
@@ -49,7 +63,7 @@ passport.use(new DiscordStrategy({
   }
 }));
 
-router.get('/discord', (req, res, next) => {
+router.get('/discord', discordAuthLimiter, (req, res, next) => {
   console.log('--- [AUTH PING] FRONTEND HIT THE DISCORD LOGIN ENDPOINT ---');
   next();
 }, passport.authenticate('discord'));
