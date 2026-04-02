@@ -57,16 +57,16 @@ router.get('/discord/callback', (req, res, next) => {
   passport.authenticate('discord', (err, user, info) => {
     if (err) {
       console.error('Passport Auth Error:', err);
-      return res.redirect('/');
+      return res.redirect(`${process.env.CLIENT_URL}?auth_error=oauth_failed`);
     }
     if (!user) {
       console.error('Passport Auth Failed (No user returned, likely bad Client ID/Secret or invalid token exchange). Info:', info);
-      return res.redirect('/');
+      return res.redirect(`${process.env.CLIENT_URL}?auth_error=no_user`);
     }
     req.logIn(user, (loginErr) => {
       if (loginErr) {
         console.error('Session Login Error:', loginErr);
-        return res.redirect('/');
+        return res.redirect(`${process.env.CLIENT_URL}?auth_error=session_failed`);
       }
       return res.redirect(`${process.env.CLIENT_URL}/dashboard`);
     });
