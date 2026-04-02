@@ -1,0 +1,51 @@
+    Project: betting-bread-base-version
+    
+    Overview:
+    - A full-stack application with a React frontend and an Express backend.
+    - Designed with a "Kinetic Vault" aesthetic (dark mode, orange highlights, grid patterns).
+
+    Project structure:
+
+    1. Client (/client):
+    - React + Vite application.
+    - Styling: Tailwind CSS + Framer Motion.
+    - Components: Sidebar, TopNav, Layout, PriceTicker.
+    - Pages: 
+        - Home (Public Landing Page)
+        - Dashboard (User Dashboard - Protected)
+        - Admin (Admin Panel - Protected)
+    - Key Files:
+        - `src/App.jsx`: Main routing.
+        - `src/lib/api.js`: Axios configuration for backend communication.
+        - `tailwind.config.js`: Custom theme for Betting Bread.
+
+    2. Server (/server):
+    - Node.js + Express application.
+    - Database: PostgreSQL (using `pg` pool).
+    - Authentication: Passport.js with Discord Strategy.
+    - Session: `express-session` with `connect-pg-simple` (Postgres storage).
+    - Key Files:
+        - `app.js`: Server entry point.
+        - `routes/auth.js`: Discord login/callback/logout logic.
+        - `routes/dashboard.js`: Data for the user dashboard.
+        - `db/index.js`: Database pool connection.
+
+    Current stage assessment:
+    - Full-stack architecture is established.
+    - Database and Discord Auth are integrated at the code level.
+    - Frontend includes a polished landing page and skeleton dashboard/admin views.
+
+    How to run:
+    1. Server:
+       - cd server
+       - npm install
+       - npm run dev (starts on http://localhost:3000)
+    2. Client:
+       - cd client
+       - npm install
+       - npm run dev (starts on http://localhost:5173 or similar)
+
+    Notes:
+    - Ensure `.env` files are configured in both directories.
+    - Server uses CommonJS (`require`).
+    - Database migrations are required for `users` and `sessions` tables.
