@@ -34,6 +34,7 @@ function CountdownTimer({ expiryDate }) {
     return () => clearInterval(timer);
   }, [expiryDate]);
 
+  return (
     <div className="flex flex-col items-center w-full max-w-[280px] mx-auto">
       <span className="text-[10px] font-black uppercase tracking-[4px] text-orange mb-3 opacity-100">Time Remaining</span>
       <div className="flex justify-center gap-3 font-brand text-3xl md:text-4xl text-green-cash w-full">
@@ -42,6 +43,7 @@ function CountdownTimer({ expiryDate }) {
         <div className="bg-bbg-surface2 border border-br px-3 py-2 shadow-inner">{timeLeft.s}<span className="text-[10px] font-display ml-1 text-tx opacity-60 uppercase font-bold">s</span></div>
       </div>
     </div>
+  );
 }
 
 export default function Dashboard() {
@@ -184,10 +186,7 @@ export default function Dashboard() {
       <canvas ref={canvasRef} className="fixed inset-0 z-0 pointer-events-none opacity-55"></canvas>
       <div className="fixed inset-0 z-[9998] pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.035) 3px, rgba(0,0,0,0.035) 4px)' }}></div>
 
-      <div className="fixed top-0 left-0 right-0 z-[10000] h-[46px] bg-bbg-surface border-b border-br flex items-center overflow-hidden w-full">
-        <div className="font-display font-black text-[10px] tracking-[3px] uppercase text-white bg-orange h-full px-[24px] pl-[20px] pr-[32px] flex items-center shrink-0 z-20" style={{ clipPath: 'polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%)' }}>
-          <div className="w-[7px] h-[7px] rounded-full bg-green-cash mr-2 animate-pulse"></div>LIVE
-        </div>
+      <div className="fixed top-0 left-0 right-0 z-[10000] h-[40px] bg-bbg-surface/80 backdrop-blur-md border-b border-white/5 flex items-center overflow-hidden w-full">
         <PriceTicker />
       </div>
 
@@ -210,7 +209,7 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <main className="relative z-10 w-full pt-[160px] pb-20">
+      <main className="relative z-10 w-full pt-[140px] md:pt-[160px] pb-20">
         <div className="w-full max-w-[1200px] mx-auto px-6 md:px-8">
           
           {/* UNIFIED PROFILE HERO */}
@@ -245,7 +244,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Membership Status Section */}
-                <div className="p-8 md:p-10 bg-white/[0.02] flex flex-col justify-center min-w-[320px]">
+                <div className="p-8 md:p-10 bg-white/[0.02] flex flex-col justify-center min-w-0 md:min-w-[320px]">
                   <div className="mb-6">
                     <span className="font-display font-black uppercase text-[10px] tracking-[4px] text-orange/60 block mb-2">Access Level</span>
                     <div className="font-brand text-4xl md:text-5xl tracking-tighter text-green-cash uppercase leading-none">
@@ -276,91 +275,52 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* PRIMARY PRICING GRID (PAID FOCUS) */}
+          {/* PRIMARY PRICING GRID (PAID FOCUS) - HOME.JSX STYLE */}
           {membership?.tier !== 'lifetime' && (
             <div className="mb-20 animate-fade-up">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* Weekly Plan */}
-                <div className={`surface-container p-8 rounded-xl border border-white/5 flex flex-col justify-between transition-all hover:border-orange/30 group ${membership?.tier === 'weekly' ? 'opacity-50 pointer-events-none' : ''}`}>
-                  <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <span className="text-[10px] font-black uppercase tracking-[3px] text-tx/60">Standard Entry</span>
-                      <Zap size={18} className="text-tx/70 group-hover:text-orange transition-colors" />
+                {[
+                  { n: 'Weekly', p: '10', f: 'per week \u00B7 cancel anytime', hot: false, tier: 'weekly' },
+                  { n: 'Pro Monthly', p: '99', f: 'per month \u00B7 best value', hot: true, tier: 'pro_monthly' },
+                  { n: 'Lifetime', p: '299', f: 'one-time \u00B7 everything forever', hot: false, tier: 'lifetime' },
+                ].map((t, i) => {
+                  const isActive = membership?.tier === t.tier;
+                  return (
+                    <div key={i} className={`p-[38px] px-[30px] relative overflow-hidden transition-all duration-[250ms] border flex flex-col justify-between ${isActive ? 'opacity-50 grayscale-[0.5]' : 'hover:-translate-y-2'} ${t.hot ? 'bg-bbg-surface2 border-orange-dim shadow-[0_0_40px_rgba(242,100,25,0.05)]' : 'bg-bbg-surface border-br hover:border-br-mid'}`}>
+                      {t.hot && (
+                        <>
+                          <div className="absolute top-0 left-0 w-full text-center font-display font-black text-[9px] tracking-[5px] text-white bg-orange py-[7px] uppercase">◆ TOP PICK ◆</div>
+                          <div className="absolute bottom-0 right-0 w-0 h-0 border-solid border-b-[70px] border-r-[70px] border-b-transparent border-r-orange/[0.12]"></div>
+                        </>
+                      )}
+                      <div>
+                        <div className={`font-display font-bold text-[11px] tracking-[4px] text-green-cash uppercase ${t.hot ? 'mt-[26px] mb-3' : 'mb-3'}`}>{t.n}</div>
+                        <div className="font-brand text-[88px] tracking-[1px] leading-none text-orange flex items-start mb-0">
+                          <span className="text-orange-dim text-[32px] mt-3 mr-1">$</span>{t.p}
+                        </div>
+                        <div className="text-[12px] text-green-cash opacity-60 pb-[22px] border-b border-br my-2 mb-[26px]">{t.f}</div>
+                        <ul className="flex flex-col gap-[11px] mb-[28px]">
+                          {(t.tier === 'weekly' ? ['Real-time Alpha', 'Discord Access', 'Weekly Analysis', 'Secure Ticker'] : 
+                            t.tier === 'pro_monthly' ? ['Priority Alpha', 'Bot Signals', 'Full Historical Data', '24/7 Neural Support'] : 
+                            ['Permanent Access', 'All Future Updates', 'Exclusive VIP Hub', 'Governance Voting']).map((feat, j) => (
+                            <li key={j} className="text-[13px] text-green-cash flex items-center gap-[10px]">
+                              <span className="w-4 h-[2px] bg-orange shrink-0"></span> {feat}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <button
+                        onClick={() => !isActive && handleUpgrade(t.tier)}
+                        disabled={isActive}
+                        className={`w-full block text-center font-display font-black text-[11px] tracking-[3px] uppercase transition-colors p-[13px] clip-path-lbl ${isActive ? 'border border-white/10 text-tx/30' : t.hot ? 'bg-orange text-white border border-orange hover:bg-orange-hot' : 'border border-br-mid text-green-cash hover:text-orange hover:border-orange'}`}
+                      >
+                        {isActive ? 'Current Plan' : `Initialize ${t.n}`}
+                      </button>
                     </div>
-                    <h3 className="font-brand text-3xl text-white uppercase mb-2">Weekly</h3>
-                    <div className="flex items-end gap-1 mb-6">
-                      <span className="text-4xl font-brand text-tx">$10</span>
-                      <span className="text-[10px] text-tx/30 uppercase font-bold tracking-widest pb-1">/ Week</span>
-                    </div>
-                    <ul className="space-y-3 mb-10">
-                      {['Real-time Alpha', 'Discord Access', 'Weekly Analysis', 'Secure Ticker'].map((f, i) => (
-                        <li key={i} className="flex items-center gap-2 text-[11px] text-tx/60 uppercase tracking-wider font-bold">
-                          <div className="w-1 h-1 bg-green-cash rounded-full" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button onClick={() => handleUpgrade('weekly')} className="w-full py-4 bg-white/5 border border-white/10 text-tx font-display font-black text-[11px] uppercase tracking-[3px] hover:bg-white/10 transition-all">
-                    Initialize Weekly
-                  </button>
-                </div>
-
-                {/* Pro Monthly Plan */}
-                <div className={`surface-container p-8 rounded-xl border border-white/5 flex flex-col justify-between transition-all hover:border-orange/30 group relative ${membership?.tier === 'pro_monthly' ? 'opacity-50 pointer-events-none' : ''}`}>
-                   <div className="absolute top-0 right-0 bg-white/5 text-tx/70 text-[8px] font-black px-3 py-1 uppercase tracking-[2px]">Recurring</div>
-                   <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <span className="text-[10px] font-black uppercase tracking-[3px] text-tx/60">Performance Lead</span>
-                      <Crown size={18} className="text-tx/70 group-hover:text-orange transition-colors" />
-                    </div>
-                    <h3 className="font-brand text-3xl text-white uppercase mb-2">Pro <span className="text-orange">Monthly</span></h3>
-                    <div className="flex items-end gap-1 mb-6">
-                      <span className="text-4xl font-brand text-white">$99</span>
-                      <span className="text-[10px] text-tx/30 uppercase font-bold tracking-widest pb-1">/ Month</span>
-                    </div>
-                    <ul className="space-y-3 mb-10">
-                      {['Priority Alpha', 'Bot Signals', 'Full Historical Data', '24/7 Neural Support'].map((f, i) => (
-                        <li key={i} className="flex items-center gap-2 text-[11px] text-tx/60 uppercase tracking-wider font-bold">
-                          <div className="w-1 h-1 bg-green-cash rounded-full" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button onClick={() => handleUpgrade('pro_monthly')} className="w-full py-4 bg-white/5 border border-white/10 text-tx font-display font-black text-[11px] uppercase tracking-[3px] hover:bg-white/10 transition-all">
-                    Evolve Access
-                  </button>
-                </div>
-
-                {/* Lifetime Plan (BEST VALUE) */}
-                <div className="surface-container p-8 rounded-xl border-2 border-orange/40 flex flex-col justify-between transition-all hover:border-orange group relative shadow-[0_0_40px_rgba(242,100,25,0.05)] bg-gradient-to-b from-orange/5 to-transparent">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange text-white text-[9px] font-black px-4 py-1.5 uppercase tracking-[3px] shadow-[0_0_20px_rgba(242,100,25,0.4)]">Ultimate Value</div>
-                  <div>
-                    <div className="flex justify-between items-start mb-6">
-                      <span className="text-[10px] font-black uppercase tracking-[3px] text-orange/80">Sovereign Asset</span>
-                      <ShieldCheck size={20} className="text-orange" />
-                    </div>
-                    <h3 className="font-brand text-4xl text-white uppercase mb-2">Lifetime</h3>
-                    <div className="flex items-end gap-1 mb-6">
-                      <span className="text-5xl font-brand text-white">$299</span>
-                      <span className="text-[10px] text-tx/30 uppercase font-bold tracking-widest pb-1">One Time</span>
-                    </div>
-                    <ul className="space-y-3 mb-10">
-                      {['Permanent Access', 'All Future Updates', 'Exclusive VIP Hub', 'Governance Voting'].map((f, i) => (
-                        <li key={i} className="flex items-center gap-2 text-[11px] text-white/80 uppercase tracking-wider font-bold">
-                          <div className="w-1 h-1 bg-orange rounded-full animate-pulse" /> {f}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button onClick={() => handleUpgrade('lifetime')} className="w-full py-5 bg-orange text-white font-display font-black text-[12px] uppercase tracking-[4px] hover:bg-orange-hot transition-all shadow-[0_10px_30px_rgba(242,100,25,0.3)] hover:-translate-y-1">
-                    Secure Forever
-                  </button>
-                </div>
-
+                  );
+                })}
               </div>
 
-              {/* MISSABLE FREE TRIAL CTA */}
               {!membership && !user?.trial_used && (
                 <div className="mt-8 flex justify-center">
                   <button 
@@ -378,8 +338,9 @@ export default function Dashboard() {
             <div className="lg:col-span-2 space-y-8">
               
 
-              {/* TRANSACTIONS */}
-              <div className="bg-bbg-surface/20 backdrop-blur-md border border-white/5 p-10 relative overflow-hidden ring-1 ring-white/5">
+              {/* TRANSACTIONS - MATCHING HOME.JSX CARD DESIGN */}
+              <div className="bg-bbg-surface/40 backdrop-blur-lg border border-white/5 p-8 md:p-10 relative overflow-hidden group transition-all hover:bg-bbg-surface/60">
+                <div className="absolute top-0 left-0 w-[3px] h-0 bg-orange group-hover:h-full transition-all duration-[350ms]"></div>
                 <div className="flex items-center gap-3 mb-10 pb-6 border-b border-white/5 relative z-10">
                   <div className="w-1.5 h-[22px] bg-orange/60"></div>
                   <h2 className="font-display font-black text-sm tracking-[4px] text-white uppercase">History</h2>

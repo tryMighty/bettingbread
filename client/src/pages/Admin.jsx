@@ -193,14 +193,11 @@ export default function Admin() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none opacity-40 z-0" />
       
       {/* Upper Logic Bar */}
-      <div className="fixed top-0 left-0 right-0 z-[10000] h-[46px] bg-bbg-surface border-b border-br flex items-center overflow-hidden w-full">
-        <div className="font-display font-black text-[10px] tracking-[3px] uppercase text-white bg-orange h-full px-[24px] pl-[20px] pr-[32px] flex items-center shrink-0 z-20" style={{ clipPath: 'polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%)' }}>
-          <div className="w-[7px] h-[7px] rounded-full bg-green-cash mr-2 animate-pulse"></div>LIVE
-        </div>
+      <div className="fixed top-0 left-0 right-0 z-[10000] h-[40px] bg-bbg-surface/80 backdrop-blur-md border-b border-white/5 flex items-center overflow-hidden w-full">
         <PriceTicker />
       </div>
 
-      <nav className="fixed top-[46px] left-0 right-0 z-50 flex justify-center h-20 bg-bbg/95 backdrop-blur-xl border-b border-br w-full">
+      <nav className="fixed top-[40px] left-0 right-0 z-50 flex justify-center h-20 bg-bbg/95 backdrop-blur-xl border-b border-br w-full">
         <div className="w-full max-w-[1400px] px-6 md:px-10 flex items-center justify-between">
           <div onClick={() => navigate('/')} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity cursor-pointer">
             <div className="w-[20px] h-[20px] rounded-full overflow-hidden border border-orange">
@@ -219,7 +216,7 @@ export default function Admin() {
         </div>
       </nav>
 
-      <main className="pt-32 px-6 md:px-10 pb-20 max-w-[1400px] mx-auto relative z-10 flex-grow">
+      <main className="pt-[140px] md:pt-32 px-4 md:px-10 pb-20 max-w-[1400px] mx-auto relative z-10 flex-grow">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-12 animate-fade-down">
           <div>
@@ -329,44 +326,44 @@ export default function Admin() {
               <table className="w-full text-left font-body min-w-[700px]">
                 <thead>
                   <tr className="bg-bbg/40 text-tx/60 font-display font-bold text-[10px] uppercase tracking-[4px] border-b border-white/5">
-                    <th className="px-8 py-6">Member Profile</th>
-                    <th className="px-8 py-6">Subscription</th>
-                    <th className="px-8 py-6">Availability</th>
-                    <th className="px-8 py-6">Expiry</th>
-                    <th className="px-8 py-6 text-right">Permissions</th>
+                    <th className="px-4 md:px-8 py-6">Member Profile</th>
+                    <th className="px-4 md:px-8 py-6">Subscription</th>
+                    <th className="px-4 md:px-8 py-6 hidden lg:table-cell">Availability</th>
+                    <th className="px-4 md:px-8 py-6 hidden sm:table-cell">Expiry</th>
+                    <th className="px-4 md:px-8 py-6 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredMembers.map((m, idx) => (
                     <tr key={idx} className="hover:bg-white/[0.01] transition-all group">
-                      <td className="px-8 py-8">
-                        <div className="flex items-center gap-4">
+                      <td className="px-4 md:px-8 py-8">
+                        <div className="flex items-center gap-3 md:gap-4">
                           {m.avatar ? (
-                            <img src={m.avatar} className="w-10 h-10 rounded-full border border-white/10 opacity-80 group-hover:opacity-100 transition-opacity" alt="" />
+                            <img src={m.avatar} className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-white/10 opacity-80 group-hover:opacity-100 transition-opacity flex-shrink-0" alt="" />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-orange/5 border border-orange/20 flex items-center justify-center text-orange text-sm font-brand">{m.username?.[0]?.toUpperCase()}</div>
+                            <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-orange/5 border border-orange/20 flex items-center justify-center text-orange text-xs md:text-sm font-brand flex-shrink-0">{m.username?.[0]?.toUpperCase()}</div>
                           )}
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-brand text-lg text-tx uppercase tracking-tight leading-none group-hover:text-orange transition-colors">{m.username}</span>
-                            <span className="text-[9px] text-tx/30 uppercase tracking-[2px] font-bold">{m.discord_id}</span>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="font-brand text-base md:text-lg text-tx uppercase tracking-tight leading-none group-hover:text-orange transition-colors truncate">{m.username}</span>
+                            <span className="text-[8px] md:text-[9px] text-tx/30 uppercase tracking-[2px] font-bold truncate">{m.discord_id}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-8">
-                        <span className={`px-3 py-1 rounded text-[9px] font-bold uppercase tracking-[2px] ${m.tier === 'lifetime' ? 'bg-orange/10 text-orange' : 'bg-white/5 text-tx/60'}`}>
+                      <td className="px-4 md:px-8 py-8">
+                        <span className={`px-2 md:px-3 py-1 rounded text-[8px] md:text-[9px] font-bold uppercase tracking-[2px] ${m.tier === 'lifetime' ? 'bg-orange/10 text-orange' : 'bg-white/5 text-tx/60'}`}>
                           {m.tier === 'free_trial' ? 'Trial' : m.tier === 'pro_monthly' ? 'Monthly' : m.tier === 'weekly' ? 'Weekly' : m.tier === 'lifetime' ? 'Lifetime' : 'None'}
                         </span>
                       </td>
-                      <td className="px-8 py-8">
+                      <td className="px-4 md:px-8 py-8 hidden lg:table-cell">
                         <span className={`flex items-center gap-2 text-[9px] font-bold uppercase tracking-[2px] ${m.status === 'active' ? 'text-green-cash' : 'text-tx/70'}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'active' ? 'bg-green-cash animate-pulse shadow-[0_0_8px_rgba(85,204,112,0.4)]' : 'bg-tx/10'}`} />
                           {m.status || 'Offline'}
                         </span>
                       </td>
-                      <td className="px-8 py-8 text-tx/60 font-display text-[10px] uppercase tracking-[2px]">
+                      <td className="px-4 md:px-8 py-8 hidden sm:table-cell text-tx/60 font-display text-[10px] uppercase tracking-[2px]">
                         {m.expiry_date ? new Date(m.expiry_date).toLocaleDateString() : (m.tier === 'lifetime' ? 'PERPETUAL' : 'N/A')}
                       </td>
-                      <td className="px-8 py-8 text-right space-x-3 whitespace-nowrap">
+                      <td className="px-4 md:px-8 py-8 text-right space-x-1 md:space-x-3 whitespace-nowrap">
                         <button className="p-2 rounded bg-white/5 text-tx/30 hover:text-green-cash hover:bg-green-cash/10 transition-all shadow-sm" title="View Profile">
                           <span className="material-symbols-outlined text-base">visibility</span>
                         </button>
