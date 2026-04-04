@@ -43,4 +43,52 @@
   .animate-tscroll {
     animation: tscroll 30s linear infinite;
   }
+
+  /* Mascot Animations */
+  @keyframes cpfly {
+    0% { opacity: 0; transform: translateY(0) rotate(-10deg) scale(0.8); }
+    15% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-90px) rotate(20deg) scale(1.1); }
+  }
+  @keyframes mascot-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-16px); }
+  }
+  @keyframes mascot-enter {
+    from { opacity: 0; transform: scale(0.9) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .animate-mascot-enter-bob {
+    animation: mascot-enter 0.8s 0.4s ease forwards, mascot-bob 3.8s 1.2s ease-in-out infinite;
+  }
+
+  /* UI Animations & Utilities */
+  .clip-path-lbl { clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+  .animate-fade-up { animation: fadeUp 0.6s ease backwards; }
+  @keyframes fadeUp { 
+    from { opacity: 0; transform: translateY(30px); } 
+    to { opacity: 1; transform: translateY(0); } 
+  }
+
+  /* Footer/Badge Styles */
+  .clip-path-badge { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+  .clip-path-btn { clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+  
+  @keyframes glow-breathe {
+    0%, 100% { opacity: 0.5; transform: translateX(-50%) scaleX(1); }
+    50% { opacity: 0.9; transform: translateX(-50%) scaleX(1.25); }
+  }
+  .animate-glow-breathe {
+    animation: glow-breathe 3.8s ease-in-out infinite;
+  }
+
+  @keyframes tdot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.4); }
+  }
+  .animate-tdot { animation: tdot 1.4s infinite; }
+
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
 }

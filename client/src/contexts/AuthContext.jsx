@@ -29,11 +29,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signOut = () => {
-    window.location.href = `${authApi.defaults.baseURL}/auth/logout`;
+    const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
+    window.location.href = `${baseUrl}/auth/logout`;
   };
 
   const signIn = () => {
-    window.location.href = `${authApi.defaults.baseURL}/auth/discord`;
+    const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
+    window.location.href = `${baseUrl}/auth/discord`;
   };
 
   const value = {

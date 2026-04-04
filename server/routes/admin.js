@@ -2,9 +2,8 @@ const express = require('express');
 const { pool } = require('../db/index');
 const { isAuthenticated } = require('../middleware/auth');
 const { revokeRole } = require('../services/discordBot');
-const { z } = require('zod');
-
-const discordIdSchema = z.string().min(17).max(21).regex(/^\d+$/);
+const { discordIdSchema } = require('../schemas/base');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -95,6 +94,8 @@ router.post('/members/:discord_id/revoke', isAuthenticated, isAdmin, async (req,
     await revokeRole(discord_id);
     
     await client.query('COMMIT');
+    logger.info('Membership manually revoked by admin', { discord_id, admin_id: req.user.discord_id });
+    
     res.json({ message: 'User membership successfully revoked.' });
     
   } catch (err) {

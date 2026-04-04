@@ -173,6 +173,57 @@ export default function Home() {
       <main className="relative z-10 w-full">
         {/* HERO */}
         <section className="relative pt-[100px] md:pt-[160px] pb-8 md:pb-12 overflow-hidden flex flex-col">
+          {/* MOBILE VIEW HERO MODIFICATIONS */}
+          <style>{`
+            @media (max-width: 768px) {
+              /* Turn the main grid into a flex column format */
+              main > section:first-of-type > div.grid {
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              
+              /* Un-nest text elements to allow re-ordering amongst the image */
+              main > section:first-of-type > div.grid > div:nth-child(5) {
+                display: contents !important;
+              }
+              
+              /* 1. Subheading */
+              main > section:first-of-type > div.grid > div:nth-child(5) > *:nth-child(1) {
+                order: 1 !important;
+                margin-top: 1.5rem !important;
+              }
+              /* 2. Heading */
+              main > section:first-of-type > div.grid > div:nth-child(5) > *:nth-child(2) {
+                order: 2 !important;
+              }
+              /* 3. Paragraph */
+              main > section:first-of-type > div.grid > div:nth-child(5) > *:nth-child(3) {
+                order: 3 !important;
+                margin-bottom: 0 !important;
+              }
+              /* 4. Mascot Image */
+              main > section:first-of-type > div.grid > div:nth-child(6) {
+                order: 4 !important;
+                margin-top: 1rem !important;
+              }
+              /* 5. Button Wrapper */
+              main > section:first-of-type > div.grid > div:nth-child(5) > *:nth-child(4) {
+                order: 5 !important;
+                margin-top: 1.5rem !important;
+                margin-bottom: 2rem !important;
+                width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+              }
+              
+              /* Button itself */
+              main > section:first-of-type > div.grid > div:nth-child(5) > *:nth-child(4) > a {
+                width: fit-content !important;
+                max-width: none !important;
+                display: inline-block !important;
+              }
+            }
+          `}</style>
           <div className="relative z-10 w-full max-w-[1200px] mx-auto px-6 md:px-8 grid grid-cols-1 md:grid-cols-2 items-center my-auto py-6 md:py-8">
             {/* HUD Brackets */}
             <div className="absolute top-[36px] md:top-0 left-6 md:left-8 w-5 h-5 md:w-8 md:h-8 border-t-[3px] border-l-[3px] border-orange z-10"></div>
@@ -355,54 +406,6 @@ export default function Home() {
 
         <Footer />
       </main>
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        @keyframes cpfly {
-          0% { opacity: 0; transform: translateY(0) rotate(-10deg) scale(0.8); }
-          15% { opacity: 1; }
-          100% { opacity: 0; transform: translateY(-90px) rotate(20deg) scale(1.1); }
-        }
-        @keyframes mascot-bob {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-16px); }
-        }
-        @keyframes mascot-enter {
-          from { opacity: 0; transform: scale(0.9) translateY(20px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .animate-mascot-enter-bob {
-          animation: mascot-enter 0.8s 0.4s ease forwards, mascot-bob 3.8s 1.2s ease-in-out infinite;
-        }
-        @keyframes glow-breathe {
-          0%, 100% { opacity: 0.5; transform: translateX(-50%) scaleX(1); }
-          50% { opacity: 0.9; transform: translateX(-50%) scaleX(1.25); }
-        }
-        .animate-glow-breathe {
-          animation: glow-breathe 3.8s ease-in-out infinite;
-        }
-        @keyframes tdot {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.4; transform: scale(1.4); }
-        }
-        .animate-tdot { animation: tdot 1.4s infinite; }
-        .clip-path-badge { clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
-        .clip-path-btn { clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
-        .clip-path-lbl { clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
-        .animate-fade-up { animation: fadeUp 0.6s ease backwards; }
-        .animation-delay-100 { animation-delay: 100ms; }
-        .animation-delay-200 { animation-delay: 200ms; }
-        .animation-delay-300 { animation-delay: 300ms; }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-tscroll { animation: tscroll 32s linear infinite; }
-        @keyframes tscroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}} />
     </div>
   );
 }

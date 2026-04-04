@@ -2,10 +2,9 @@ const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const { pool } = require('../db/index');
 const { isAuthenticated } = require('../middleware/auth');
-const { grantRole, revokeRole } = require('../services/discordBot');
-const { z } = require('zod');
+const { tierSchema } = require('../schemas/base');
+const logger = require('../utils/logger');
 
-const tierSchema = z.enum(['weekly', 'pro_monthly', 'lifetime']);
 
 const router = express.Router();
 
@@ -37,7 +36,7 @@ router.post('/create-checkout', isAuthenticated, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    console.error('Stripe Error:', err);
+    logger.error('Stripe Checkout Session creation failed', { error: err.message, stack: err.stack, discord_id, tier });
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
@@ -50,6 +49,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
+    logger.warn('Stripe Webhook signature verification failed', { error: err.message });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -103,11 +103,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
       const { grantRole } = require('../services/discordBot');
       await grantRole(discord_id);
 
-      console.log(`Payment confirmed for ${discord_id}, Tier: ${tier}`);
+      logger.info('Payment confirmed via webhook', { discord_id, tier, session_id: session.id });
 
     } catch (err) {
       await pool.query('ROLLBACK');
-      console.error('Database Error in Webhook:', err);
+      logger.error('Database Error in Stripe Webhook (checkout.session.completed)', { error: err.message, stack: err.stack, discord_id, tier });
     }
   } else if (event.type === 'customer.subscription.deleted') {
     const subscription = event.data.object;
@@ -141,11 +141,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         
         await pool.query('COMMIT');
         
-        console.log(`Subscription deleted: Revoked role for ${discordId}`);
+        logger.info('Subscription cancelled via webhook', { discord_id: discordId, subscription_id: subscription.id });
       }
     } catch (err) {
       await pool.query('ROLLBACK');
-      console.error('Database Error when handling subscription deletion:', err);
+      logger.error('Database Error in Stripe Webhook (customer.subscription.deleted)', { error: err.message, stack: err.stack, subscription_id: subscription.id });
     }
   }
 

@@ -3,6 +3,7 @@ const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const { rateLimit } = require('express-rate-limit');
 const { pool } = require('../db/index');
+const logger = require('../utils/logger');
 
 const router = express.Router();
 
@@ -58,35 +59,35 @@ passport.use(new DiscordStrategy({
 
     return done(null, { discord_id: id, username, avatar: avatarUrl, email });
   } catch (err) {
-    console.error('Error in Discord strategy:', err);
+    logger.error('Error in Discord strategy', { error: err.message, stack: err.stack, discord_id: id });
     return done(err);
   }
 }));
 
 router.get('/discord', discordAuthLimiter, (req, res, next) => {
-  console.log('--- [AUTH PING] FRONTEND HIT THE DISCORD LOGIN ENDPOINT ---');
+  logger.info('Discord login initiated');
   next();
 }, passport.authenticate('discord'));
 router.get('/discord/callback', (req, res, next) => {
   passport.authenticate('discord', (err, user, info) => {
     if (err) {
-      console.error('Passport Auth Error Detail:', JSON.stringify(err, null, 2));
+      logger.error('Passport Auth Error Detail', { error: err.message, stack: err.stack });
       
       // Specifically handle rate limit (429) errors to avoid loop
       if (err.oauthError?.statusCode === 429) {
-        console.warn('--- [AUTH ALERT] DISCORD IS RATE LIMITING THE SERVER (Cloudflare 1015) ---');
+        logger.warn('DISCORD IS RATE LIMITING THE SERVER (Cloudflare 1015)');
         return res.redirect(`${process.env.CLIENT_URL}?auth_error=rate_limited`);
       }
 
       return res.redirect(`${process.env.CLIENT_URL}?auth_error=oauth_failed&msg=${encodeURIComponent(err.message || 'unknown')}`);
     }
     if (!user) {
-      console.error('Passport Auth Failed (No user returned, likely bad Client ID/Secret or invalid token exchange). Info:', info);
+      logger.error('Passport Auth Failed (No user returned)', { info });
       return res.redirect(`${process.env.CLIENT_URL}?auth_error=no_user`);
     }
     req.logIn(user, (loginErr) => {
       if (loginErr) {
-        console.error('Session Login Error:', loginErr);
+        logger.error('Session Login Error', { error: loginErr.message, stack: loginErr.stack });
         return res.redirect(`${process.env.CLIENT_URL}?auth_error=session_failed`);
       }
       const adminIds = (process.env.ADMIN_DISCORD_IDS || '').split(',');

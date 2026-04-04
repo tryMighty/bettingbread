@@ -4,24 +4,23 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 
-// Database connection for token management
+const logger = require('../utils/logger');
 const { pool } = require('../db/index');
 
 // Define Role ID from env
 const BREAD_BRO_ROLE_ID = process.env.DISCORD_ROLE_BREAD_BRO;
 
 client.once('ready', () => {
-  console.log(`Discord Bot logged in as ${client.user.tag}`);
+  logger.info(`Discord Bot logged in as ${client.user.tag}`);
 });
 
 // Error handling to prevent crash if token is missing or intents are disallowed
 if (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_BOT_TOKEN !== 'your_bot_token_here') {
   client.login(process.env.DISCORD_BOT_TOKEN).catch(err => {
     if (err.message.includes('intents')) {
-       console.error('\u001b[31m[CRITICAL] Discord Bot Login Failed: Used disallowed intents.\u001b[0m');
-       console.error('\u001b[33mACTION REQUIRED: Visit https://discord.com/developers/applications, go to the "Bot" tab, and enable "SERVER MEMBERS INTENT".\u001b[0m');
+       logger.error('Discord Bot Login Failed: Used disallowed intents. ACTION REQUIRED: Enable SERVER MEMBERS INTENT in Discord Developer Portal.');
     } else {
-       console.error('Discord Bot Login Failed:', err.message);
+       logger.error('Discord Bot Login Failed', { error: err.message });
     }
   });
 }
@@ -57,7 +56,7 @@ async function refreshDiscordToken(discordId) {
 
     return access_token;
   } catch (error) {
-    console.error('Failed to refresh Discord token:', error.message);
+    logger.error('Failed to refresh Discord token', { error: error.message, discord_id: discordId });
     return null;
   }
 }
@@ -80,7 +79,7 @@ async function addUserToGuild(discordId) {
     const guild = await client.guilds.fetch(guildId);
     await guild.members.add(discordId, { accessToken: access_token });
   } catch (error) {
-    console.error(`Failed to add user to guild:`, error.message);
+    logger.error('Failed to add user to guild', { error: error.message, discord_id: discordId });
   }
 }
 
@@ -108,11 +107,11 @@ async function grantRole(discordId) {
     if (!member) throw new Error('Member not found in guild');
 
     await member.roles.add(roleId);
-    console.log(`Bread Bro role granted to ${member.user.tag}`);
+    logger.info('Discord role granted', { discord_id: discordId, role_id: roleId, user_tag: member.user.tag });
     
     // Optional: Send a DM or a welcome message in a channel
   } catch (err) {
-    console.error(`Failed to grant Discord role: ${err.message}`);
+    logger.error('Failed to grant Discord role', { error: err.message, discord_id: discordId, role_id: roleId });
   }
 }
 
@@ -137,9 +136,9 @@ async function revokeRole(discordId) {
     if (!member) throw new Error('Member not found in guild');
 
     await member.roles.remove(roleId);
-    console.log(`Bread Bro role revoked from ${member.user.tag}`);
+    logger.info('Discord role revoked', { discord_id: discordId, role_id: roleId, user_tag: member.user.tag });
   } catch (err) {
-    console.error(`Failed to revoke Discord role: ${err.message}`);
+    logger.error('Failed to revoke Discord role', { error: err.message, discord_id: discordId, role_id: roleId });
   }
 }
 

@@ -1,8 +1,7 @@
 const express = require('express');
 const { pool } = require('../db/index');
 const { isAuthenticated } = require('../middleware/auth');
-const { grantRole } = require('../services/discordBot');
-const { z } = require('zod');
+const logger = require('../utils/logger');
 
 
 const router = express.Router();
@@ -37,7 +36,7 @@ router.get('/profile', isAuthenticated, async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    logger.error('Profile fetch error', { error: err.message, stack: err.stack, discord_id: req.user.discord_id });
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -86,12 +85,13 @@ router.post('/trial', isAuthenticated, async (req, res) => {
     `, [userId, 'free_trial', 'free_trial', 'User activated a free trial']);
 
     await client.query('COMMIT');
+    logger.info('Free trial activated', { discord_id: userId, expiry_date: expiryDate });
     res.json({ message: 'Free trial activated', expiry_date: expiryDate });
 
 
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Trial Activation Error:', err);
+    logger.error('Trial Activation Error', { error: err.message, stack: err.stack, discord_id: req.user.discord_id });
     res.status(500).json({ error: 'Failed to activate trial' });
   } finally {
     client.release();

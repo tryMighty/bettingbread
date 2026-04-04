@@ -8,10 +8,16 @@ require('dotenv').config();
 const { pool } = require('./db/index');
 
 const { initCronJobs } = require('./services/cronJobs');
-const { errorHandler } = require('./middleware/error');
-
+const logger = require('./utils/logger');
+const { doubleCsrfProtection, generateToken } = require('./middleware/csrf');
 
 const app = express();
+
+// Use structured logger for request logging
+app.use((req, res, next) => {
+  logger.info(`${req.method} ${req.url}`);
+  next();
+});
 
 // Initialize background cron tasks
 initCronJobs();
@@ -38,15 +44,28 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use('/auth', require('./routes/auth'));
-app.use('/api/dashboard', require('./routes/dashboard'));
-app.use('/api/payment', require('./routes/payment'));
-app.use('/api/admin', require('./routes/admin'));
+
+// CSRF Protected API Routes
+app.get('/api/csrf-token', (req, res) => {
+  const token = generateToken(req, res);
+  res.json({ token });
+});
+
+app.use('/api/dashboard', doubleCsrfProtection, require('./routes/dashboard'));
+app.use('/api/payment', doubleCsrfProtection, require('./routes/payment'));
+app.use('/api/admin', doubleCsrfProtection, require('./routes/admin'));
 
 app.get('/', (req, res) => res.send('BettingBread Backend is running'));
 
 // Global Error Handler (must be last)
+const errorHandler = (err, req, res, next) => {
+  logger.error(`${err.status || 500} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message
+  });
+};
+
 app.use(errorHandler);
 
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
+app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
