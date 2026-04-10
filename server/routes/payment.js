@@ -276,7 +276,7 @@ const stripeWebhookHandler = async (req, res) => {
   }
 
   res.json({ received: true });
-});
+};
 
 module.exports = { router, stripeWebhookHandler };
 
