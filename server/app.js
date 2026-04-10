@@ -3,13 +3,15 @@ const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
 const cors = require('cors');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
 require('dotenv').config();
 
 const { pool } = require('./db/index');
 
 const { initCronJobs } = require('./services/cronJobs');
 const logger = require('./utils/logger');
-const { doubleCsrfProtection, generateToken } = require('./middleware/csrf');
+const { doubleCsrfProtection, generateCsrfToken } = require('./middleware/csrf');
 const { errorHandler } = require('./middleware/error');
 const requestLogger = require('./middleware/logging');
 
@@ -43,8 +45,11 @@ app.set('trust proxy', 1); // Trust first proxy for Render/Vercel load balancers
 
 // Stripe Webhook MUST remain outside global body parsers and CSRF protection
 // Path: /api/payment/webhook (kept same path but moved up for isolation)
-app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), require('./routes/payment'));
+const { router: paymentRoutes, stripeWebhookHandler } = require('./routes/payment');
+app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), stripeWebhookHandler);
 
+app.use(helmet());
+app.use(cookieParser(process.env.SESSION_SECRET));
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 
@@ -69,12 +74,12 @@ app.use('/auth', require('./routes/auth'));
 
 // CSRF Protected API Routes
 app.get('/api/csrf-token', (req, res) => {
-  const token = generateToken(req, res);
+  const token = generateCsrfToken(req, res);
   res.json({ token });
 });
 
 app.use('/api/dashboard', doubleCsrfProtection, require('./routes/dashboard'));
-app.use('/api/payment', doubleCsrfProtection, require('./routes/payment'));
+app.use('/api/payment', doubleCsrfProtection, paymentRoutes);
 app.use('/api/admin', doubleCsrfProtection, require('./routes/admin'));
 
 app.get('/', (req, res) => res.send('BettingBread Backend is running'));

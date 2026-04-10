@@ -109,7 +109,12 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
  * Handles Stripe events (payment success, subscription renewal, cancellation).
  * This endpoint is public and exempt from CSRF.
  */
-router.post('/webhook', async (req, res) => {
+/**
+ * Stripe Webhook Handler
+ * Handles Stripe events (payment success, subscription renewal, cancellation).
+ * This handler is exported separately to allow mounting with express.raw() in app.js.
+ */
+const stripeWebhookHandler = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
@@ -273,5 +278,5 @@ router.post('/webhook', async (req, res) => {
   res.json({ received: true });
 });
 
-module.exports = router;
+module.exports = { router, stripeWebhookHandler };
 

@@ -10,8 +10,8 @@ const { pool } = require('../db/index');
 // Define Role ID from env
 const BREAD_BRO_ROLE_ID = process.env.DISCORD_ROLE_BREAD_BRO;
 
-client.once('ready', () => {
-  logger.info(`Discord Bot logged in as ${client.user.tag}`);
+client.once('clientReady', (c) => {
+  logger.info(`Discord Bot logged in as ${c.user.tag}`);
 });
 
 // Error handling to prevent crash if token is missing or intents are disallowed
@@ -96,14 +96,21 @@ async function grantRole(discordId) {
     return;
   }
 
-  // Ensure user is in guild
-  await addUserToGuild(discordId);
-
   try {
+    // Ensure user is in guild (uses oauth token)
+    logger.info('Ensuring user is in guild', { discord_id: discordId, guild_id: guildId });
+    await addUserToGuild(discordId);
+
     const guild = await client.guilds.fetch(guildId);
     if (!guild) {
       logger.error('Discord Role Grant Failed: Guild not found', { discord_id: discordId, guild_id: guildId });
       throw new Error('Target guild not found');
+    }
+
+    // Check bot permissions
+    const botMember = await guild.members.fetch(client.user.id);
+    if (!botMember.permissions.has('ManageRoles')) {
+      logger.error('Discord Bot Missing "Manage Roles" Permission', { guild_id: guildId });
     }
 
     const member = await guild.members.fetch(discordId).catch(() => null);
@@ -112,10 +119,26 @@ async function grantRole(discordId) {
       return;
     }
 
+    const role = await guild.roles.fetch(roleId);
+    if (!role) {
+      logger.error('Discord Role Grant Failed: Role ID not found in server', { role_id: roleId });
+      return;
+    }
+
+    // Check role hierarchy
+    if (role.position >= botMember.roles.highest.position) {
+      logger.error('Discord Role Hierarchy Error: Bot role must be HIGHER than the role it is trying to grant', { 
+        role_name: role.name, 
+        bot_highest_role: botMember.roles.highest.name 
+      });
+      return;
+    }
+
     await member.roles.add(roleId);
     logger.info('Discord role granted successfully', { 
       discord_id: discordId, 
       role_id: roleId, 
+      role_name: role.name,
       user_tag: member.user.tag,
       guild_name: guild.name
     });
@@ -136,7 +159,7 @@ async function grantRole(discordId) {
  */
 async function revokeRole(discordId) {
   const guildId = process.env.DISCORD_GUILD_ID;
-  const roleId = BREAD_BRO_ROLE_ID;
+  const roleId = process.env.DISCORD_ROLE_BREAD_BRO;
 
   if (!guildId || !roleId) {
     logger.error('Missing Discord Config for Role Revoke', { guild_id: guildId, role_id: roleId });
