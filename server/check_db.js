@@ -1,5 +1,4 @@
 const { pool } = require('./db/index');
-const fs = require('fs');
 
 async function checkSessionTable() {
   try {

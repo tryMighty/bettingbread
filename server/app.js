@@ -10,6 +10,8 @@ const { pool } = require('./db/index');
 const { initCronJobs } = require('./services/cronJobs');
 const logger = require('./utils/logger');
 const { doubleCsrfProtection, generateToken } = require('./middleware/csrf');
+const { errorHandler } = require('./middleware/error');
+const requestLogger = require('./middleware/logging');
 
 const morgan = require('morgan');
 const crypto = require('crypto');
@@ -22,6 +24,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Request-ID', req.id);
   next();
 });
+
+app.use(requestLogger);
 
 // Configure Morgan to use our Winston logger
 const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
@@ -36,6 +40,11 @@ initCronJobs();
 
 
 app.set('trust proxy', 1); // Trust first proxy for Render/Vercel load balancers
+
+// Stripe Webhook MUST remain outside global body parsers and CSRF protection
+// Path: /api/payment/webhook (kept same path but moved up for isolation)
+app.post('/api/payment/webhook', express.raw({ type: 'application/json' }), require('./routes/payment'));
+
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 
@@ -69,33 +78,6 @@ app.use('/api/payment', doubleCsrfProtection, require('./routes/payment'));
 app.use('/api/admin', doubleCsrfProtection, require('./routes/admin'));
 
 app.get('/', (req, res) => res.send('BettingBread Backend is running'));
-
-/**
- * Global Error Handler.
- * Logs detailed error information and sends sanitized responses to the client.
- */
-const errorHandler = (err, req, res, next) => {
-  const statusCode = err.status || 500;
-  const isProduction = process.env.NODE_ENV === 'production';
-
-  // Log the error with full context
-  logger.error('Unhandled Application Error', {
-    status: statusCode,
-    message: err.message,
-    stack: !isProduction ? err.stack : undefined,
-    url: req.originalUrl,
-    method: req.method,
-    ip: req.ip,
-    user_id: req.user?.discord_id,
-    request_id: req.id
-  });
-
-  res.status(statusCode).json({
-    error: isProduction ? 'An unexpected error occurred. Please try again later.' : err.message,
-    request_id: req.id // Provide request ID for user support
-  });
-};
-
 
 app.use(errorHandler);
 

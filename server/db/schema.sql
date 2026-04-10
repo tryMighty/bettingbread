@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS memberships (
   id SERIAL PRIMARY KEY,
   discord_id TEXT UNIQUE NOT NULL REFERENCES profiles(discord_id) ON DELETE CASCADE,
-  tier TEXT NOT NULL CHECK (tier IN ('free_trial', 'weekly', 'pro_monthly', 'lifetime')),
+  tier TEXT NOT NULL CHECK (tier IN ('free_trial', 'weekly', 'monthly', 'lifetime')),
   status TEXT NOT NULL DEFAULT 'active', -- active, cancelled, expired, trial
   expiry_date TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),

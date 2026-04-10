@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { Terminal, LogOut } from 'lucide-react';
 import { usePageTitle } from '../hooks/usePageTitle';
-import { 
-  Terminal,
-  LogOut,
-  ChevronRight,
-  ArrowLeft,
-  Users,
-  Box,
-  LayoutDashboard
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
@@ -107,8 +98,8 @@ export default function Admin() {
   }, []);
 
   const filteredMembers = members.filter(m => 
-    m.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.discord_id?.includes(searchTerm)
+    (m.username?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (m.discord_id || '').includes(searchTerm)
   );
 
   // Derived Stats
@@ -116,7 +107,7 @@ export default function Admin() {
   
   // MRR Calculation (Estimated)
   const weeklyCount = stats.tiers.find(t => t.tier === 'weekly')?.count || 0;
-  const monthlyCount = stats.tiers.find(t => t.tier === 'pro_monthly')?.count || 0;
+  const monthlyCount = stats.tiers.find(t => t.tier === 'monthly')?.count || 0;
   const mrr = (weeklyCount * 10 * 4.33) + (monthlyCount * 99); // Normalized via average weeks/month
 
   const handleExport = () => {
@@ -124,7 +115,7 @@ export default function Admin() {
       const csvContent = "data:text/csv;charset=utf-8," 
         + ["User,Subscription,Status,Expiry"].join(",") + "\n"
         + members.map(m => {
-          const s = m.tier === 'free_trial' ? 'Trial' : m.tier === 'pro_monthly' ? 'Monthly' : m.tier === 'weekly' ? 'Weekly' : m.tier === 'lifetime' ? 'Lifetime' : 'None';
+          const s = m.tier === 'free_trial' ? 'Trial' : m.tier === 'monthly' ? 'Monthly' : m.tier === 'weekly' ? 'Weekly' : m.tier === 'lifetime' ? 'Lifetime' : 'None';
           return `${m.username},${s},${m.status},${m.expiry_date}`;
         }).join("\n");
       const encodedUri = encodeURI(csvContent);
@@ -351,7 +342,7 @@ export default function Admin() {
                       </td>
                       <td className="px-4 md:px-8 py-8">
                         <span className={`px-2 md:px-3 py-1 rounded text-[8px] md:text-[9px] font-bold uppercase tracking-[2px] ${m.tier === 'lifetime' ? 'bg-orange/10 text-orange' : 'bg-white/5 text-tx/60'}`}>
-                          {m.tier === 'free_trial' ? 'Trial' : m.tier === 'pro_monthly' ? 'Monthly' : m.tier === 'weekly' ? 'Weekly' : m.tier === 'lifetime' ? 'Lifetime' : 'None'}
+                          {m.tier === 'free_trial' ? 'Trial' : m.tier === 'monthly' ? 'Monthly' : m.tier === 'weekly' ? 'Weekly' : m.tier === 'lifetime' ? 'Lifetime' : 'None'}
                         </span>
                       </td>
                       <td className="px-4 md:px-8 py-8 hidden lg:table-cell">
@@ -429,7 +420,7 @@ export default function Admin() {
                       <>{act.username} signed up on the site</>
                     )}
                     {act.event_type === 'purchase' && (
-                      <>{act.username} bought a <span className="text-tx font-bold uppercase">{act.tier === 'free_trial' ? 'Trial' : act.tier === 'pro_monthly' ? 'Monthly' : act.tier === 'weekly' ? 'Weekly' : act.tier === 'lifetime' ? 'Lifetime' : act.tier?.replace('_', ' ')}</span> subscription</>
+                      <>{act.username} bought a <span className="text-tx font-bold uppercase">{act.tier === 'free_trial' ? 'Trial' : act.tier === 'monthly' ? 'Monthly' : act.tier === 'weekly' ? 'Weekly' : act.tier === 'lifetime' ? 'Lifetime' : act.tier?.replace('_', ' ')}</span> subscription</>
                     )}
                     {act.event_type === 'free_trial' && (
                       <>{act.username} activated a free trial pass</>

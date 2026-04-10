@@ -1,24 +1,39 @@
+const logger = require('../utils/logger');
+
 /**
- * Global error handling middleware.
+ * Global Error Handler.
+ * Logs detailed error information and sends sanitized responses to the client.
  */
-const errorHandler = (err, req, res, next) => {
-  // If it's a known operational error from Zod or similar
+const errorHandler = (err, req, res, _next) => {
+  const statusCode = err.status || 500;
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Log the error with full context
+  logger.error('Unhandled Application Error', {
+    status: statusCode,
+    message: err.message,
+    stack: !isProduction ? err.stack : undefined,
+    url: req.originalUrl,
+    method: req.method,
+    ip: req.ip,
+    user_id: req.user?.discord_id,
+    request_id: req.id
+  });
+
+  // Handle specific error types (e.g., Zod validation)
   if (err.name === 'ZodError') {
     return res.status(400).json({
       error: 'Validation Error',
-      details: err.flatten()
+      details: err.flatten(),
+      request_id: req.id
     });
   }
 
-  console.error(`[SERVER ERROR] ${req.method} ${req.url}:`, err.stack || err);
-
-  const status = err.status || 500;
-  const message = err.message || 'Internal Server Error';
-
-  res.status(status).json({
-    error: message,
-    status,
-    timestamp: new Date().toISOString()
+  res.status(statusCode).json({
+    error: isProduction ? 'An unexpected error occurred. Please try again later.' : err.message,
+    status: statusCode,
+    timestamp: new Date().toISOString(),
+    request_id: req.id // Provide request ID for user support
   });
 };
 

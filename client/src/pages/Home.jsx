@@ -6,6 +6,29 @@ import PriceTicker from '../components/PriceTicker';
 import Footer from '../components/Footer';
 import { usePageTitle } from '../hooks/usePageTitle';
 
+class Particle {
+  constructor(w, h) {
+    this.x = Math.random() * w;
+    this.y = Math.random() * h;
+    this.vx = (Math.random() - 0.5) * 0.18;
+    this.vy = (Math.random() - 0.5) * 0.18;
+    this.r = Math.random() * 1.2 + 0.4;
+    this.isOrange = Math.random() < 0.35;
+  }
+  update(w, h) {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x < 0 || this.x > w) this.vx *= -1;
+    if (this.y < 0 || this.y > h) this.vy *= -1;
+  }
+  draw(ctx) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = this.isOrange ? 'rgba(242, 100, 25, 0.55)' : 'rgba(45, 84, 38, 0.45)';
+    ctx.fill();
+  }
+}
+
 export default function Home() {
   usePageTitle('Home');
   const canvasRef = useRef(null);
@@ -21,7 +44,7 @@ export default function Home() {
 
     try {
       const { data } = await api.post('/api/payment/create-checkout', { tier: tier.toLowerCase().replace(' ', '_') });
-      if (data.url) window.location.href = data.url;
+      if (data.url) window.location.assign(data.url);
     } catch (err) {
       console.error('Purchase Error:', err);
       alert('Failed to initiate checkout. Please try again.');
@@ -46,30 +69,7 @@ export default function Home() {
     resize();
     window.addEventListener('resize', resize);
 
-    class Particle {
-      constructor() {
-        this.x = Math.random() * W;
-        this.y = Math.random() * H;
-        this.vx = (Math.random() - 0.5) * 0.18;
-        this.vy = (Math.random() - 0.5) * 0.18;
-        this.r = Math.random() * 1.2 + 0.4;
-        this.isOrange = Math.random() < 0.35;
-      }
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        if (this.x < 0 || this.x > W) this.vx *= -1;
-        if (this.y < 0 || this.y > H) this.vy *= -1;
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-        ctx.fillStyle = this.isOrange ? 'rgba(242, 100, 25, 0.55)' : 'rgba(45, 84, 38, 0.45)';
-        ctx.fill();
-      }
-    }
-
-    for (let i = 0; i < 110; i++) particles.push(new Particle());
+    for (let i = 0; i < 110; i++) particles.push(new Particle(W, H));
 
     const drawLines = () => {
       for (let i = 0; i < particles.length; i++) {
@@ -118,7 +118,7 @@ export default function Home() {
     const loop = () => {
       ctx.clearRect(0, 0, W, H);
       drawLines();
-      particles.forEach(p => { p.update(); p.draw(); });
+      particles.forEach(p => { p.update(W, H); p.draw(ctx); });
       spawnFlash();
       drawFlashes();
       animationFrameId = requestAnimationFrame(loop);

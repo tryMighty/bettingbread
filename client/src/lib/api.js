@@ -65,7 +65,7 @@ api.interceptors.response.use(
 export const signInWithDiscord = () => {
   // Ensure we don't have double slashes if baseURL has a trailing slash
   const baseUrl = api.defaults.baseURL.replace(/\/$/, '');
-  window.location.href = `${baseUrl}/auth/discord`;
+  window.location.assign(`${baseUrl}/auth/discord`);
 };  
 
 export default api;

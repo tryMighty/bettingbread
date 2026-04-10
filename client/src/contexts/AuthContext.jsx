@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data } = await authApi.get('/api/dashboard/profile');
       setUser(data.user || null);
-    } catch (err) {
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -30,12 +30,12 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = () => {
     const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
-    window.location.href = `${baseUrl}/auth/logout`;
+    window.location.assign(`${baseUrl}/auth/logout`);
   };
 
   const signIn = () => {
     const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
-    window.location.href = `${baseUrl}/auth/discord`;
+    window.location.assign(`${baseUrl}/auth/discord`);
   };
 
   const value = {
@@ -49,6 +49,7 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

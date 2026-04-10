@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS memberships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   discord_id TEXT UNIQUE NOT NULL REFERENCES profiles(discord_id) ON DELETE CASCADE,
-  tier TEXT NOT NULL CHECK (tier IN ('free_trial', 'weekly', 'pro_monthly', 'lifetime')),
+  tier TEXT NOT NULL CHECK (tier IN ('free_trial', 'weekly', 'monthly', 'lifetime')),
   status TEXT NOT NULL DEFAULT 'active', -- active, cancelled, expired
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,

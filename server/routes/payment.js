@@ -10,6 +10,46 @@ const asyncHandler = require('../utils/asyncHandler');
 const router = express.Router();
 
 /**
+ * Calculates the new expiry date based on the tier.
+ * @param {string} tier - The membership tier.
+ * @returns {Date|null} - The calculated expiry date or null for lifetime.
+ */
+function calculateExpiry(tier) {
+  const now = new Date();
+  if (tier === 'weekly') {
+    now.setDate(now.getDate() + 7);
+    return now;
+  } else if (tier === 'monthly') {
+    now.setMonth(now.getMonth() + 1);
+    return now;
+  }
+  return null; // Lifetime or unknown
+}
+
+/**
+ * Ensures we are using a Stripe Price ID.
+ * If a Product ID (prod_...) is provided, it fetches its default price.
+ * @param {string} idOrProductId - The ID from env.
+ * @returns {Promise<string>} - The Price ID.
+ */
+async function ensurePriceId(idOrProductId) {
+  if (idOrProductId.startsWith('price_')) return idOrProductId;
+  
+  if (idOrProductId.startsWith('prod_')) {
+    logger.info('Resolving Product ID to Price ID', { product_id: idOrProductId });
+    const product = await stripe.products.retrieve(idOrProductId);
+    if (!product.default_price) {
+      throw new Error(`Product ${idOrProductId} has no default price configured.`);
+    }
+    return typeof product.default_price === 'string' 
+      ? product.default_price 
+      : product.default_price.id;
+  }
+  
+  return idOrProductId; // Fallback
+}
+
+/**
  * POST /api/payment/create-checkout
  * Creates a Stripe Checkout Session for a membership tier.
  */
@@ -27,8 +67,21 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
 
   let priceId;
   if (tier === 'weekly') priceId = process.env.STRIPE_PRICE_WEEKLY;
-  else if (tier === 'pro_monthly') priceId = process.env.STRIPE_PRICE_PRO_MONTHLY;
+  else if (tier === 'monthly') priceId = process.env.STRIPE_PRICE_PRO_MONTHLY;
   else if (tier === 'lifetime') priceId = process.env.STRIPE_PRICE_LIFETIME;
+
+  if (!priceId) {
+    logger.error('Missing Stripe Price ID in config', { tier });
+    return res.status(500).json({ error: 'Payment service misconfigured.' });
+  }
+
+  // Resolve Price ID if it's a Product ID
+  try {
+    priceId = await ensurePriceId(priceId);
+  } catch (err) {
+    logger.error('Failed to resolve Price ID', { error: err.message, tier });
+    return res.status(500).json({ error: 'Payment configuration error.' });
+  }
 
   logger.info('Creating checkout session', { discord_id, tier, email });
 
@@ -52,14 +105,16 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
 }));
 
 /**
- * POST /api/payment/webhook
- * Handles Stripe events (payment success, subscription cancellation).
+ * POST /api/payment/webhook (and also mounted at /api/stripe-webhook in app.js)
+ * Handles Stripe events (payment success, subscription renewal, cancellation).
+ * This endpoint is public and exempt from CSRF.
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
+    // Note: We use req.body directly because express.raw() is configured in app.js for this path
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     logger.warn('Stripe Webhook signature verification failed', { error: err.message, ip: req.ip });
@@ -69,111 +124,149 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   const { type, data } = event;
   logger.info(`Received Stripe Webhook: ${type}`, { event_id: event.id });
 
-  if (type === 'checkout.session.completed') {
-    const session = data.object;
-    const { discord_id, tier } = session.metadata;
-    const customerId = session.customer;
-    const subscriptionId = session.subscription || null;
+  try {
+    switch (type) {
+      case 'checkout.session.completed': {
+        const session = data.object;
+        const { discord_id, tier } = session.metadata;
+        const customerId = session.customer;
+        const subscriptionId = session.subscription || null;
+        const expiry = calculateExpiry(tier);
 
-    // Calculate expiry
-    let expiry = null;
-    if (tier === 'weekly') {
-      expiry = new Date();
-      expiry.setDate(expiry.getDate() + 7);
-    } else if (tier === 'pro_monthly') {
-      expiry = new Date();
-      expiry.setMonth(expiry.getMonth() + 1);
-    }
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
 
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
+          // Update/Insert Membership
+          await client.query(`
+            INSERT INTO memberships (discord_id, tier, stripe_customer_id, stripe_subscription_id, expiry_date, status)
+            VALUES ($1, $2, $3, $4, $5, 'active')
+            ON CONFLICT (discord_id) DO UPDATE SET 
+              tier = $2, 
+              stripe_customer_id = $3, 
+              stripe_subscription_id = $4, 
+              expiry_date = $5,
+              status = 'active',
+              updated_at = now()
+          `, [discord_id, tier, customerId, subscriptionId, expiry]);
 
-      // Update Membership
-      await client.query(`
-        INSERT INTO memberships (discord_id, tier, stripe_customer_id, stripe_subscription_id, expiry_date, status)
-        VALUES ($1, $2, $3, $4, $5, 'active')
-        ON CONFLICT (discord_id) DO UPDATE SET 
-          tier = $2, 
-          stripe_customer_id = $3, 
-          stripe_subscription_id = $4, 
-          expiry_date = $5,
-          status = 'active',
-          updated_at = now()
-      `, [discord_id, tier, customerId, subscriptionId, expiry]);
+          // Log Transaction
+          await client.query(`
+            INSERT INTO transactions (discord_id, stripe_session_id, amount_total, currency, tier, status)
+            VALUES ($1, $2, $3, $4, $5, 'complete')
+          `, [discord_id, session.id, session.amount_total, session.currency, tier]);
 
-      // Log Transaction
-      await client.query(`
-        INSERT INTO transactions (discord_id, stripe_session_id, amount_total, currency, tier, status)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [discord_id, session.id, session.amount_total, session.currency, tier, 'complete']);
+          // Log Audit Event
+          await client.query(`
+            INSERT INTO audit_logs (discord_id, event_type, tier, description)
+            VALUES ($1, 'purchase', $2, 'User initial purchase completed via Stripe')
+          `, [discord_id, tier]);
 
-      // Log Audit Event
-      await client.query(`
-        INSERT INTO audit_logs (discord_id, event_type, tier, description)
-        VALUES ($1, $2, $3, $4)
-      `, [discord_id, 'purchase', tier, 'User purchased subscription via Stripe']);
-
-      await client.query('COMMIT');
-
-      // Grant Discord Role
-      await grantRole(discord_id);
-
-      logger.info('Payment processed successfully', { discord_id, tier, session_id: session.id });
-
-    } catch (err) {
-      await client.query('ROLLBACK');
-      logger.error('Failed to process checkout.session.completed', { 
-        error: err.message, 
-        stack: err.stack, 
-        discord_id, 
-        tier 
-      });
-    } finally {
-      client.release();
-    }
-  } else if (type === 'customer.subscription.deleted') {
-    const subscription = data.object;
-    
-    try {
-      const { rows } = await pool.query(
-        'SELECT discord_id, tier FROM memberships WHERE stripe_subscription_id = $1', 
-        [subscription.id]
-      );
-      
-      if (rows.length > 0) {
-        const { discord_id, tier } = rows[0];
-        
-        await pool.query('BEGIN');
-        
-        await pool.query(`
-          UPDATE memberships 
-          SET status = 'cancelled', updated_at = now() 
-          WHERE stripe_subscription_id = $1
-        `, [subscription.id]);
-
-        await pool.query(`
-          INSERT INTO audit_logs (discord_id, event_type, tier, description)
-          VALUES ($1, $2, $3, $4)
-        `, [discord_id, 'revoked', tier, 'Stripe subscription was cancelled/deleted']);
-        
-        await pool.query('COMMIT');
-        
-        // Revoke Discord Role
-        await revokeRole(discord_id);
-        
-        logger.info('Subscription cancelled successfully', { 
-          discord_id, 
-          subscription_id: subscription.id 
-        });
+          await client.query('COMMIT');
+          
+          // Grant Discord Role
+          await grantRole(discord_id);
+          
+          logger.info('Checkout session processed and role granted', { discord_id, tier, session_id: session.id });
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
+        break;
       }
-    } catch (err) {
-      await pool.query('ROLLBACK');
-      logger.error('Failed to process customer.subscription.deleted', { 
-        error: err.message, 
-        stack: err.stack, 
-        subscription_id: subscription.id 
-      });
+
+      case 'invoice.payment_succeeded': {
+        const invoice = data.object;
+        // invoice.subscription will be present for recurring payments
+        if (invoice.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          const { discord_id, tier } = subscription.metadata;
+          const expiry = calculateExpiry(tier);
+
+          if (discord_id) {
+            await pool.query('BEGIN');
+            
+            await pool.query(`
+              UPDATE memberships 
+              SET expiry_date = $1, status = 'active', updated_at = now() 
+              WHERE stripe_subscription_id = $2
+            `, [expiry, invoice.subscription]);
+
+            await pool.query(`
+              INSERT INTO audit_logs (discord_id, event_type, tier, description)
+              VALUES ($1, 'purchase', $2, 'Subscription renewal successful')
+            `, [discord_id, tier]);
+
+            await pool.query('COMMIT');
+            
+            // Ensure they have the role
+            await grantRole(discord_id);
+            
+            logger.info('Subscription renewal processed', { discord_id, subscription_id: invoice.subscription });
+          }
+        }
+        break;
+      }
+
+      case 'invoice.payment_failed': {
+        const invoice = data.object;
+        logger.warn('Subscription payment failed', { 
+          subscription_id: invoice.subscription, 
+          customer_id: invoice.customer,
+          amount: invoice.amount_due
+        });
+        
+        // We log it but wait for customer.subscription.deleted to revoke access 
+        // as per user approval (A/B testing automatic retries).
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
+        const subscription = data.object;
+        const { rows } = await pool.query(
+          'SELECT discord_id, tier FROM memberships WHERE stripe_subscription_id = $1', 
+          [subscription.id]
+        );
+        
+        if (rows.length > 0) {
+          const { discord_id, tier } = rows[0];
+          
+          await pool.query('BEGIN');
+          await pool.query(`
+            UPDATE memberships 
+            SET status = 'cancelled', updated_at = now() 
+            WHERE stripe_subscription_id = $1
+          `, [subscription.id]);
+
+          await pool.query(`
+            INSERT INTO audit_logs (discord_id, event_type, tier, description)
+            VALUES ($1, 'revoked', $2, 'Stripe subscription cancelled/deleted')
+          `, [discord_id, tier]);
+          await pool.query('COMMIT');
+          
+          // Revoke Discord Role
+          await revokeRole(discord_id);
+          
+          logger.info('Subscription cancelled and role revoked', { discord_id, subscription_id: subscription.id });
+        }
+        break;
+      }
+
+      default:
+        logger.info(`Unhandled Stripe Webhook Event Type: ${type}`);
+    }
+  } catch (err) {
+    logger.error(`Error processing Stripe Webhook event: ${type}`, { 
+      error: err.message, 
+      stack: err.stack,
+      event_id: event.id 
+    });
+    // We still return 200 to Stripe to avoid retries for errors we already logged
+    // unless it's a transient DB error where we WANT a retry.
+    if (err.message.includes('connection') || err.message.includes('deadlock')) {
+       return res.status(500).json({ error: 'Temporary server error, please retry' });
     }
   }
 

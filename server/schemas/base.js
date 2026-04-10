@@ -9,7 +9,7 @@ const discordIdSchema = z.string()
   .max(21, 'Discord ID cannot exceed 21 characters')
   .regex(/^\d+$/, 'Discord ID must contain only digits');
 
-const tierSchema = z.enum(['weekly', 'pro_monthly', 'lifetime']);
+const tierSchema = z.enum(['weekly', 'monthly', 'lifetime']);
 
 module.exports = {
   discordIdSchema,

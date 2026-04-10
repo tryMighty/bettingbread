@@ -2,26 +2,36 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { LogOut, Crown, CreditCard, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import PriceTicker from '../components/PriceTicker';
 import Footer from '../components/Footer';
 
 function CountdownTimer({ expiryDate }) {
-  const [timeLeft, setTimeLeft] = useState({ h: '00', m: '00', s: '00' });
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const now = new Date();
+    const expiry = new Date(expiryDate);
+    const difference = expiry - now;
+    if (difference <= 0) return { h: '00', m: '00', s: '00', expired: true };
+    const hours = Math.floor((difference / (1000 * 60 * 60)));
+    const minutes = Math.floor((difference / 1000 / 60) % 60);
+    const seconds = Math.floor((difference / 1000) % 60);
+    return {
+      h: hours.toString().padStart(2, '0'),
+      m: minutes.toString().padStart(2, '0'),
+      s: seconds.toString().padStart(2, '0')
+    };
+  });
 
   useEffect(() => {
-    const calculateTimeLeft = () => {
+    const calculate = () => {
       const now = new Date();
       const expiry = new Date(expiryDate);
       const difference = expiry - now;
-
       if (difference <= 0) return { h: '00', m: '00', s: '00', expired: true };
-
       const hours = Math.floor((difference / (1000 * 60 * 60)));
       const minutes = Math.floor((difference / 1000 / 60) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
-
       return {
         h: hours.toString().padStart(2, '0'),
         m: minutes.toString().padStart(2, '0'),
@@ -29,10 +39,10 @@ function CountdownTimer({ expiryDate }) {
       };
     };
 
-    const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 1000);
-    setTimeLeft(calculateTimeLeft());
+    const timer = setInterval(() => setTimeLeft(calculate()), 1000);
     return () => clearInterval(timer);
   }, [expiryDate]);
+
 
   return (
     <div className="flex flex-col items-center w-full max-w-[280px] mx-auto">
@@ -44,6 +54,33 @@ function CountdownTimer({ expiryDate }) {
       </div>
     </div>
   );
+}
+
+/* Particle system logic moved outside for React compliance */
+class Particle {
+  constructor(ctx, W, H) {
+    this.ctx = ctx;
+    this.W = W;
+    this.H = H;
+    this.x = Math.random() * W;
+    this.y = Math.random() * H;
+    this.vx = (Math.random() - 0.5) * 0.18;
+    this.vy = (Math.random() - 0.5) * 0.18;
+    this.r = Math.random() * 1.2 + 0.4;
+    this.isOrange = Math.random() < 0.35;
+  }
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.x < 0 || this.x > this.W) this.vx *= -1;
+    if (this.y < 0 || this.y > this.H) this.vy *= -1;
+  }
+  draw() {
+    this.ctx.beginPath();
+    this.ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    this.ctx.fillStyle = this.isOrange ? 'rgba(242, 100, 25, 0.4)' : 'rgba(45, 84, 38, 0.3)';
+    this.ctx.fill();
+  }
 }
 
 export default function Dashboard() {
@@ -69,30 +106,7 @@ export default function Dashboard() {
     resize();
     window.addEventListener('resize', resize);
 
-    class Particle {
-      constructor() {
-        this.x = Math.random() * W;
-        this.y = Math.random() * H;
-        this.vx = (Math.random() - 0.5) * 0.18;
-        this.vy = (Math.random() - 0.5) * 0.18;
-        this.r = Math.random() * 1.2 + 0.4;
-        this.isOrange = Math.random() < 0.35;
-      }
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        if (this.x < 0 || this.x > W) this.vx *= -1;
-        if (this.y < 0 || this.y > H) this.vy *= -1;
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-        ctx.fillStyle = this.isOrange ? 'rgba(242, 100, 25, 0.4)' : 'rgba(45, 84, 38, 0.3)';
-        ctx.fill();
-      }
-    }
-
-    for (let i = 0; i < 80; i++) particles.push(new Particle());
+    for (let i = 0; i < 80; i++) particles.push(new Particle(ctx, W, H));
 
     const drawLines = () => {
       for (let i = 0; i < particles.length; i++) {
@@ -134,38 +148,40 @@ export default function Dashboard() {
       return;
     }
     
+    // Check for session_id in URL to show success message
+    const searchParams = new URLSearchParams(window.location.search);
+    const sessionId = searchParams.get('session_id');
+
     const fetchDashboard = async () => {
       try {
         const { data } = await api.get('/api/dashboard/profile');
         setMembership(data.membership);
         setTransactions(data.transactions || []);
+        
+        if (sessionId) {
+          // Success Feedback
+          window.history.replaceState({}, document.title, window.location.pathname);
+          alert('ACCESS GRANTED: Your payment was successful and your session is now active.');
+        }
       } catch (err) {
-        console.error('Error fetching dashboard info:', err);
+        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
     };
     fetchDashboard();
-  }, [user]);
+  }, [user, navigate]);
 
   const handleUpgrade = async (newTier) => {
     try {
       const { data } = await api.post('/api/payment/create-checkout', { tier: newTier });
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (err) {
-      alert('Error creating checkout session');
+      console.error('Checkout error:', err);
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm('Cancel your subscription?')) return;
-    try {
-      await api.post('/api/payment/cancel');
-      window.location.reload();
-    } catch (err) {
-      alert('Error cancelling subscription');
-    }
-  };
+
 
   if (authLoading || loading) {
     return (
@@ -248,7 +264,7 @@ export default function Dashboard() {
                   <div className="mb-6">
                     <span className="font-display font-black uppercase text-[10px] tracking-[4px] text-orange/60 block mb-2">Access Level</span>
                     <div className="font-brand text-4xl md:text-5xl tracking-tighter text-green-cash uppercase leading-none">
-                      {membership?.tier === 'free_trial' ? 'Free Trial' : membership?.tier === 'weekly' ? 'Weekly' : membership?.tier === 'pro_monthly' ? 'Pro Monthly' : membership?.tier === 'lifetime' ? 'Lifetime' : 'No Access'}
+                      {membership?.tier === 'free_trial' ? 'Free Trial' : membership?.tier === 'weekly' ? 'Weekly' : membership?.tier === 'monthly' ? 'Monthly' : membership?.tier === 'lifetime' ? 'Lifetime' : 'No Access'}
                     </div>
                   </div>
 
@@ -281,7 +297,7 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                   { n: 'Weekly', p: '10', f: 'per week \u00B7 cancel anytime', hot: false, tier: 'weekly' },
-                  { n: 'Pro Monthly', p: '99', f: 'per month \u00B7 best value', hot: true, tier: 'pro_monthly' },
+                  { n: 'Monthly', p: '99', f: 'per month \u00B7 best value', hot: true, tier: 'monthly' },
                   { n: 'Lifetime', p: '299', f: 'one-time \u00B7 everything forever', hot: false, tier: 'lifetime' },
                 ].map((t, i) => {
                   const isActive = membership?.tier === t.tier;
@@ -301,7 +317,7 @@ export default function Dashboard() {
                         <div className="text-[12px] text-green-cash opacity-60 pb-[22px] border-b border-br my-2 mb-[26px]">{t.f}</div>
                         <ul className="flex flex-col gap-[11px] mb-[28px]">
                           {(t.tier === 'weekly' ? ['Real-time Alpha', 'Discord Access', 'Weekly Analysis', 'Secure Ticker'] : 
-                            t.tier === 'pro_monthly' ? ['Priority Alpha', 'Bot Signals', 'Full Historical Data', '24/7 Neural Support'] : 
+                            t.tier === 'monthly' ? ['Priority Alpha', 'Bot Signals', 'Full Historical Data', '24/7 Neural Support'] : 
                             ['Permanent Access', 'All Future Updates', 'Exclusive VIP Hub', 'Governance Voting']).map((feat, j) => (
                             <li key={j} className="text-[13px] text-green-cash flex items-center gap-[10px]">
                               <span className="w-4 h-[2px] bg-orange shrink-0"></span> {feat}
@@ -324,7 +340,7 @@ export default function Dashboard() {
               {!membership && !user?.trial_used && (
                 <div className="mt-8 flex justify-center">
                   <button 
-                    onClick={async () => { try { await api.post('/api/dashboard/trial'); window.location.reload(); } catch (err) { alert(err.response?.data?.error || 'Failed to start trial'); } }}
+                    onClick={async () => { try { await api.post('/api/dashboard/trial'); window.location.reload(); } catch { alert('Failed to start trial'); } }}
                     className="text-[10px] font-display font-bold uppercase tracking-[4px] text-tx/70 hover:text-tx transition-colors px-6 py-3 border border-transparent hover:border-white/5 rounded-full"
                   >
                     Still want to try for 3 days? <span className="underline decoration-white/10">Activate Access Pass</span>

@@ -101,16 +101,27 @@ async function grantRole(discordId) {
 
   try {
     const guild = await client.guilds.fetch(guildId);
-    if (!guild) throw new Error('Target guild not found');
+    if (!guild) {
+      logger.error('Discord Role Grant Failed: Guild not found', { discord_id: discordId, guild_id: guildId });
+      throw new Error('Target guild not found');
+    }
 
-    const member = await guild.members.fetch(discordId);
-    if (!member) throw new Error('Member not found in guild');
+    const member = await guild.members.fetch(discordId).catch(() => null);
+    if (!member) {
+      logger.warn('Discord Role Grant Skipping: User not found in guild. They may need to join the server first.', { discord_id: discordId, guild_id: guildId });
+      return;
+    }
 
     await member.roles.add(roleId);
-    logger.info('Discord role granted successfully', { discord_id: discordId, role_id: roleId, user_tag: member.user.tag });
+    logger.info('Discord role granted successfully', { 
+      discord_id: discordId, 
+      role_id: roleId, 
+      user_tag: member.user.tag,
+      guild_name: guild.name
+    });
     
   } catch (err) {
-    logger.error('Failed to grant Discord role', { 
+    logger.error('Discord Role Grant Critical Failure', { 
       error: err.message, 
       stack: err.stack,
       discord_id: discordId, 
@@ -134,15 +145,26 @@ async function revokeRole(discordId) {
 
   try {
     const guild = await client.guilds.fetch(guildId);
-    if (!guild) throw new Error('Target guild not found');
+    if (!guild) {
+      logger.error('Discord Role Revoke Failed: Guild not found', { discord_id: discordId, guild_id: guildId });
+      throw new Error('Target guild not found');
+    }
 
-    const member = await guild.members.fetch(discordId);
-    if (!member) throw new Error('Member not found in guild');
+    const member = await guild.members.fetch(discordId).catch(() => null);
+    if (!member) {
+      logger.info('Discord Role Revoke Skipping: Member already left server', { discord_id: discordId, guild_id: guildId });
+      return;
+    }
 
     await member.roles.remove(roleId);
-    logger.info('Discord role revoked successfully', { discord_id: discordId, role_id: roleId, user_tag: member.user.tag });
+    logger.info('Discord role revoked successfully', { 
+      discord_id: discordId, 
+      role_id: roleId, 
+      user_tag: member.user.tag,
+      guild_name: guild.name
+    });
   } catch (err) {
-    logger.error('Failed to revoke Discord role', { 
+    logger.error('Discord Role Revoke Critical Failure', { 
       error: err.message, 
       stack: err.stack,
       discord_id: discordId, 
