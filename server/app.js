@@ -5,7 +5,11 @@ const cors = require('cors');
 const passport = require('passport');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
+const compression = require('compression');
+const { rateLimit } = require('express-rate-limit');
 require('dotenv').config();
+const { validateConfig } = require('./utils/configCheck');
+validateConfig();
 
 const { pool } = require('./db/index');
 
@@ -27,7 +31,17 @@ app.use((req, res, next) => {
   next();
 });
 
+// Global Rate Limiter: Protects against DDoS and brute force
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes.' }
+});
+
 app.use(requestLogger);
+app.use(compression()); // Compress all responses
 
 // Configure Morgan to use our Winston logger
 const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
@@ -41,7 +55,17 @@ app.use(morgan(morganFormat, {
 initCronJobs();
 
 
-app.set('trust proxy', 1); // Trust first proxy for Render/Vercel load balancers
+// Trust proxy is required for Railway/Vercel to relay IP addresses correctly
+app.set('trust proxy', 1); 
+
+// Health Check Endpoint (for monitoring services)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'UP', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
 
 // Stripe Webhook MUST remain outside global body parsers and CSRF protection
 // Path: /api/payment/webhook (kept same path but moved up for isolation)
@@ -78,13 +102,32 @@ app.get('/api/csrf-token', (req, res) => {
   res.json({ token });
 });
 
-app.use('/api/dashboard', doubleCsrfProtection, require('./routes/dashboard'));
-app.use('/api/payment', doubleCsrfProtection, paymentRoutes);
-app.use('/api/admin', doubleCsrfProtection, require('./routes/admin'));
+app.use('/api/dashboard', globalLimiter, doubleCsrfProtection, require('./routes/dashboard'));
+app.use('/api/payment', globalLimiter, doubleCsrfProtection, paymentRoutes);
+app.use('/api/admin', globalLimiter, doubleCsrfProtection, require('./routes/admin'));
 
 app.get('/', (req, res) => res.send('BettingBread Backend is running'));
 
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
+
+// Graceful Shutdown Handler
+const gracefulShutdown = () => {
+  logger.info('SIGTERM/SIGINT received. Shutting down gracefully...');
+  server.close(async () => {
+    logger.info('HTTP server closed.');
+    try {
+      await pool.end();
+      logger.info('Database pool closed.');
+      process.exit(0);
+    } catch (err) {
+      logger.error('Error during database shutdown', { error: err.message });
+      process.exit(1);
+    }
+  });
+};
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

@@ -150,6 +150,9 @@ async function grantRole(discordId) {
       discord_id: discordId, 
       role_id: roleId 
     });
+    // Mark as transient for webhook retry logic
+    err.isTransient = (err.message.includes('fetch') || err.status >= 500 || err.code === 'UND_ERR_CONNECT_TIMEOUT');
+    throw err;
   }
 }
 
@@ -193,6 +196,9 @@ async function revokeRole(discordId) {
       discord_id: discordId, 
       role_id: roleId 
     });
+    // Mark as transient for webhook retry logic
+    err.isTransient = (err.message.includes('fetch') || err.status >= 500 || err.code === 'UND_ERR_CONNECT_TIMEOUT');
+    throw err;
   }
 }
 

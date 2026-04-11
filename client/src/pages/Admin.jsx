@@ -6,6 +6,8 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
 import PriceTicker from '../components/PriceTicker';
 import Footer from '../components/Footer';
+import Preloader from '../components/Preloader';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function Admin() {
   usePageTitle('Admin Dashboard');
@@ -17,6 +19,7 @@ export default function Admin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [revokingId, setRevokingId] = useState(null);
 
   // Particle Effect Logic
   useEffect(() => {
@@ -132,6 +135,7 @@ export default function Admin() {
 
   const handleRevoke = async (discordId, username) => {
     if (window.confirm(`Are you sure you want to completely revoke ${username}'s membership and remove their Discord access?`)) {
+      setRevokingId(discordId);
       try {
         await api.post(`/api/admin/members/${discordId}/revoke`);
         // Refresh the member data
@@ -144,23 +148,14 @@ export default function Admin() {
       } catch (err) {
         console.error("Revoke failed:", err);
         alert("Failed to revoke membership. Please check console.");
+      } finally {
+        setRevokingId(null);
       }
     }
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-bbg text-center py-32 px-6">
-        <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none opacity-40" />
-        <div className="relative w-24 h-24 mb-10">
-          <div className="absolute inset-0 rounded-xl border-2 border-orange/10 rotate-45"></div>
-          <div className="absolute inset-0 rounded-xl border-2 border-orange border-t-transparent animate-spin rotate-45"></div>
-          <div className="absolute inset-0 flex items-center justify-center text-orange text-3xl font-brand">🍞</div>
-        </div>
-        <h2 className="font-brand text-3xl text-tx tracking-[0.3em] uppercase mb-3">Initializing Vault</h2>
-        <p className="text-tx/60 font-display text-[10px] uppercase tracking-[5px]">Establishing Neural Link</p>
-      </div>
-    );
+    return <Preloader message="Initializing Vault" subtext="Establishing Neural Link" />;
   }
 
   if (error) {
@@ -361,10 +356,15 @@ export default function Admin() {
                         {m.status === 'active' && m.tier !== 'lifetime' && (
                           <button 
                             onClick={() => handleRevoke(m.discord_id, m.username)}
-                            className="p-2 rounded bg-white/5 text-tx/30 hover:text-red-500 hover:bg-red-500/10 transition-all shadow-sm"
+                            disabled={revokingId === m.discord_id}
+                            className="p-2 rounded bg-white/5 text-tx/30 hover:text-red-500 hover:bg-red-500/10 transition-all shadow-sm disabled:opacity-50"
                             title="Revoke Access"
                           >
-                            <span className="material-symbols-outlined text-base">person_remove</span>
+                            {revokingId === m.discord_id ? (
+                               <LoadingSpinner size={16} className="text-red-500" />
+                            ) : (
+                               <span className="material-symbols-outlined text-base">person_remove</span>
+                            )}
                           </button>
                         )}
                       </td>

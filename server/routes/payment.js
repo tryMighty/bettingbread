@@ -268,9 +268,15 @@ const stripeWebhookHandler = async (req, res) => {
       stack: err.stack,
       event_id: event.id 
     });
-    // We still return 200 to Stripe to avoid retries for errors we already logged
-    // unless it's a transient DB error where we WANT a retry.
-    if (err.message.includes('connection') || err.message.includes('deadlock')) {
+
+    // If it's a transient error (DB connection, deadlock, Discord API timeout), 
+    // return 500 to trigger Stripe's retry mechanism.
+    const isTransient = err.isTransient || 
+                        err.message.includes('connection') || 
+                        err.message.includes('deadlock') ||
+                        err.code === '40P01'; // Postgres deadlock code
+
+    if (isTransient) {
        return res.status(500).json({ error: 'Temporary server error, please retry' });
     }
   }

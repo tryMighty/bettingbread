@@ -6,8 +6,10 @@ import { LogOut, ShieldCheck } from 'lucide-react';
 import { usePageTitle } from '../hooks/usePageTitle';
 import PriceTicker from '../components/PriceTicker';
 import Footer from '../components/Footer';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Preloader from '../components/Preloader';
 
-function CountdownTimer({ expiryDate }) {
+function CountdownTimer({ expiryDate, onExpire }) {
   const [timeLeft, setTimeLeft] = useState(() => {
     const now = new Date();
     const expiry = new Date(expiryDate);
@@ -19,7 +21,8 @@ function CountdownTimer({ expiryDate }) {
     return {
       h: hours.toString().padStart(2, '0'),
       m: minutes.toString().padStart(2, '0'),
-      s: seconds.toString().padStart(2, '0')
+      s: seconds.toString().padStart(2, '0'),
+      expired: false
     };
   });
 
@@ -35,13 +38,21 @@ function CountdownTimer({ expiryDate }) {
       return {
         h: hours.toString().padStart(2, '0'),
         m: minutes.toString().padStart(2, '0'),
-        s: seconds.toString().padStart(2, '0')
+        s: seconds.toString().padStart(2, '0'),
+        expired: false
       };
     };
 
-    const timer = setInterval(() => setTimeLeft(calculate()), 1000);
+    const timer = setInterval(() => {
+      const res = calculate();
+      setTimeLeft(res);
+      if (res.expired && onExpire) {
+        clearInterval(timer);
+        onExpire();
+      }
+    }, 1000);
     return () => clearInterval(timer);
-  }, [expiryDate]);
+  }, [expiryDate, onExpire]);
 
 
   return (
@@ -86,11 +97,14 @@ class Particle {
 export default function Dashboard() {
   usePageTitle('Dashboard');
   const canvasRef = useRef(null);
+  const alertShowed = useRef(false);
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [membership, setMembership] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isUpgrading, setIsUpgrading] = useState(null);
+  const [isTrialing, setIsTrialing] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -158,8 +172,9 @@ export default function Dashboard() {
         setMembership(data.membership);
         setTransactions(data.transactions || []);
         
-        if (sessionId) {
+        if (sessionId && !alertShowed.current) {
           // Success Feedback
+          alertShowed.current = true;
           window.history.replaceState({}, document.title, window.location.pathname);
           alert('ACCESS GRANTED: Your payment was successful and your session is now active.');
         }
@@ -173,28 +188,20 @@ export default function Dashboard() {
   }, [user, navigate]);
 
   const handleUpgrade = async (newTier) => {
+    setIsUpgrading(newTier);
     try {
       const { data } = await api.post('/api/payment/create-checkout', { tier: newTier });
       window.location.assign(data.url);
     } catch (err) {
       console.error('Checkout error:', err);
+      setIsUpgrading(null);
     }
   };
 
 
 
   if (authLoading || loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-bbg text-center py-32">
-        <div className="relative w-20 h-20 mb-8">
-          <div className="absolute inset-0 rounded-full border-4 border-orange/20"></div>
-          <div className="absolute inset-0 rounded-full border-4 border-orange border-t-transparent animate-spin"></div>
-          <div className="absolute inset-0 flex items-center justify-center font-brand text-orange text-xl">BB</div>
-        </div>
-        <h2 className="text-3xl font-black font-headline text-[#F79D00] tracking-tighter uppercase mb-1">Command Center</h2>
-        <p className="text-[#E5E2E1]/40 font-label text-sm uppercase tracking-widest">Real-time data and member oversight</p>
-      </div>
-    );
+    return <Preloader message="Synchronizing Access" subtext="Decrypting Vault Protocols" />;
   }
 
   return (
@@ -283,7 +290,10 @@ export default function Dashboard() {
 
                   {membership?.tier !== 'lifetime' && membership?.status === 'active' && (
                     <div className="mt-8 pt-6 border-t border-white/5">
-                      <CountdownTimer expiryDate={membership.expiry_date} />
+                      <CountdownTimer 
+                        expiryDate={membership.expiry_date} 
+                        onExpire={() => window.location.reload()} 
+                      />
                     </div>
                   )}
                 </div>
@@ -327,10 +337,15 @@ export default function Dashboard() {
                       </div>
                       <button
                         onClick={() => !isActive && handleUpgrade(t.tier)}
-                        disabled={isActive}
-                        className={`w-full block text-center font-display font-black text-[11px] tracking-[3px] uppercase transition-colors p-[13px] clip-path-lbl ${isActive ? 'border border-white/10 text-tx/30' : t.hot ? 'bg-orange text-white border border-orange hover:bg-orange-hot' : 'border border-br-mid text-green-cash hover:text-orange hover:border-orange'}`}
+                        disabled={isUpgrading !== null}
+                        className={`w-full block text-center font-display font-black text-[11px] tracking-[3px] uppercase transition-colors p-[13px] clip-path-lbl ${isActive ? 'border border-white/10 text-tx/30' : t.hot ? 'bg-orange text-white border border-orange hover:bg-orange-hot' : 'border border-br-mid text-green-cash hover:text-orange hover:border-orange'} disabled:opacity-70`}
                       >
-                        {isActive ? 'Current Plan' : `Initialize ${t.n}`}
+                        {isUpgrading === t.tier ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <LoadingSpinner size={14} className={t.hot ? 'text-white' : 'text-orange'} />
+                            <span>INITIALIZING...</span>
+                          </div>
+                        ) : isActive ? 'Current Plan' : `Initialize ${t.n}`}
                       </button>
                     </div>
                   );
@@ -340,10 +355,24 @@ export default function Dashboard() {
               {!membership && !user?.trial_used && (
                 <div className="mt-8 flex justify-center">
                   <button 
-                    onClick={async () => { try { await api.post('/api/dashboard/trial'); window.location.reload(); } catch { alert('Failed to start trial'); } }}
-                    className="text-[10px] font-display font-bold uppercase tracking-[4px] text-tx/70 hover:text-tx transition-colors px-6 py-3 border border-transparent hover:border-white/5 rounded-full"
+                    disabled={isTrialing}
+                    onClick={async () => { 
+                      setIsTrialing(true);
+                      try { 
+                        await api.post('/api/dashboard/trial'); 
+                        window.location.reload(); 
+                      } catch { 
+                        alert('Failed to start trial'); 
+                        setIsTrialing(false);
+                      } 
+                    }}
+                    className="text-[10px] font-display font-bold uppercase tracking-[4px] text-tx/70 hover:text-tx transition-colors px-6 py-3 border border-transparent hover:border-white/5 rounded-full flex items-center gap-2 disabled:opacity-50"
                   >
-                    Still want to try for 3 days? <span className="underline decoration-white/10">Activate Access Pass</span>
+                    {isTrialing ? (
+                      <LoadingSpinner size={12} className="text-tx/70" />
+                    ) : null}
+                    <span>{isTrialing ? 'ACTIVATING...' : 'Still want to try for 3 days?'}</span>
+                    {!isTrialing && <span className="underline decoration-white/10 ml-1">Activate Access Pass</span>}
                   </button>
                 </div>
               )}

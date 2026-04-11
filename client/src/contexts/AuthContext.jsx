@@ -13,6 +13,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const fetchProfile = async () => {
     try {
       const { data } = await authApi.get('/api/dashboard/profile');
@@ -29,11 +31,13 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const signOut = () => {
+    setIsProcessing(true);
     const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
     window.location.assign(`${baseUrl}/auth/logout`);
   };
 
   const signIn = () => {
+    setIsProcessing(true);
     const baseUrl = authApi.defaults.baseURL.replace(/\/$/, '');
     window.location.assign(`${baseUrl}/auth/discord`);
   };
@@ -41,6 +45,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    isProcessing,
     signOut,
     signIn,
     refreshUser: fetchProfile

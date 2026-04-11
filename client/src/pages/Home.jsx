@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import PriceTicker from '../components/PriceTicker';
 import Footer from '../components/Footer';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 class Particle {
@@ -33,8 +34,9 @@ export default function Home() {
   usePageTitle('Home');
   const canvasRef = useRef(null);
 
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, isProcessing } = useAuth();
   const navigate = useNavigate();
+  const [purchasingTier, setPurchasingTier] = useState(null);
 
   const handlePurchase = async (tier) => {
     if (!user) {
@@ -42,12 +44,14 @@ export default function Home() {
       return;
     }
 
+    setPurchasingTier(tier);
     try {
       const { data } = await api.post('/api/payment/create-checkout', { tier: tier.toLowerCase().replace(' ', '_') });
       if (data.url) window.location.assign(data.url);
     } catch (err) {
       console.error('Purchase Error:', err);
       alert('Failed to initiate checkout. Please try again.');
+      setPurchasingTier(null);
     }
   };
 
@@ -160,12 +164,22 @@ export default function Home() {
           </ul>
           <button
             onClick={user ? () => navigate('/dashboard') : handleSignIn}
-            className="font-display font-black text-[13px] tracking-[2px] uppercase text-white bg-orange hover:bg-orange-hot transition-transform hover:-translate-y-px px-7 py-3 clip-path-btn whitespace-nowrap flex items-center gap-2"
+            disabled={loading || isProcessing}
+            className="font-display font-black text-[13px] tracking-[2px] uppercase text-white bg-orange hover:bg-orange-hot transition-transform hover:-translate-y-px px-7 py-3 clip-path-btn whitespace-nowrap flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <svg width="15" height="15" viewBox="0 0 127.14 96.36" fill="currentColor">
-              <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-            </svg>
-            {loading ? '...' : (user ? 'Dashboard' : 'Sign In')}
+            {(loading || isProcessing) ? (
+              <>
+                <LoadingSpinner size={14} />
+                <span>{isProcessing ? 'SIGNING IN...' : 'LOADING...'}</span>
+              </>
+            ) : (
+              <>
+                <svg width="15" height="15" viewBox="0 0 127.14 96.36" fill="currentColor">
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                </svg>
+                <span>{user ? 'Dashboard' : 'Sign In'}</span>
+              </>
+            )}
           </button>
         </div>
       </nav>
@@ -368,9 +382,17 @@ export default function Home() {
                   </ul>
                   <button
                     onClick={() => handlePurchase(t.n)}
-                    className={`w-full block text-center font-display font-black text-[11px] tracking-[3px] uppercase transition-colors p-[13px] clip-path-lbl ${t.hot ? 'bg-orange text-white border border-orange hover:bg-orange-hot' : 'border border-br-mid text-green-cash hover:text-orange hover:border-orange'}`}
+                    disabled={purchasingTier !== null || isProcessing}
+                    className={`w-full flex items-center justify-center gap-2 text-center font-display font-black text-[11px] tracking-[3px] uppercase transition-colors p-[13px] clip-path-lbl disabled:opacity-70 disabled:cursor-not-allowed ${t.hot ? 'bg-orange text-white border border-orange hover:bg-orange-hot' : 'border border-br-mid text-green-cash hover:text-orange hover:border-orange'}`}
                   >
-                    Select {t.n}
+                    {purchasingTier === t.n ? (
+                      <>
+                        <LoadingSpinner size={14} className="text-white" />
+                        <span>PROCESSING...</span>
+                      </>
+                    ) : (
+                      <span>Select {t.n}</span>
+                    )}
                   </button>
                 </div>
               ))}
@@ -394,12 +416,22 @@ export default function Home() {
             </p>
             <button
               onClick={user ? () => navigate('/dashboard') : handleSignIn}
-              className="inline-flex items-center justify-center gap-3 font-display font-black text-[14px] tracking-[3px] uppercase text-white bg-orange hover:bg-orange-hot transition-transform hover:-translate-y-[2px] px-[56px] py-[17px] clip-path-lbl"
+              disabled={loading || isProcessing}
+              className="inline-flex items-center justify-center gap-3 font-display font-black text-[14px] tracking-[3px] uppercase text-white bg-orange hover:bg-orange-hot transition-transform hover:-translate-y-[2px] px-[56px] py-[17px] clip-path-lbl disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <svg width="15" height="15" viewBox="0 0 127.14 96.36" fill="currentColor">
-                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z" />
-              </svg>
-              {loading ? '...' : (user ? 'Go to Dashboard' : 'Sign In Now')}
+              {(loading || isProcessing) ? (
+                <>
+                  <LoadingSpinner size={16} />
+                  <span>{isProcessing ? 'SIGNING IN...' : 'LOADING...'}</span>
+                </>
+              ) : (
+                <>
+                  <svg width="15" height="15" viewBox="0 0 127.14 96.36" fill="currentColor">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.31,60,73.31,53s5-12.74,11.43-12.74S96.2,46,96.12,53,91.08,65.69,84.69,65.69Z" />
+                  </svg>
+                  <span>{user ? 'Go to Dashboard' : 'Sign In Now'}</span>
+                </>
+              )}
             </button>
           </div>
         </section>
