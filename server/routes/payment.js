@@ -86,15 +86,22 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
   logger.info('Creating checkout session', { discord_id, tier, email });
 
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
       mode: tier === 'lifetime' ? 'payment' : 'subscription',
       success_url: `${process.env.CLIENT_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL}/dashboard`,
-      customer_email: email,
       metadata: { discord_id, tier }
-    });
+    };
+
+    // Only add customer_email if it's a valid non-empty string
+    // This prevents "Invalid email address" errors from Stripe when discord email is null
+    if (email && typeof email === 'string' && email.trim() !== '') {
+      sessionParams.customer_email = email;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     logger.info('Checkout session created', { 
       discord_id, 
@@ -105,6 +112,7 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
 
     res.json({ url: session.url });
   } catch (err) {
+
     logger.error('Stripe Checkout Session Creation Failed', { 
       error: err.message, 
       stack: err.stack,
