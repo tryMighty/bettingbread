@@ -75,20 +75,20 @@ export default function Preloader({ message = "Initializing Neural Link", subtex
       
       <div className="relative z-10 flex flex-col items-center gap-8">
         {/* Core HUD Element */}
-        <div className="relative w-32 h-32 flex items-center justify-center">
+        <div className="relative w-24 h-24 md:w-32 md:h-32 flex items-center justify-center">
           {/* Outer Ring */}
           <div className="absolute inset-0 rounded-full border border-orange/10 border-t-orange animate-[spin_3s_linear_infinite]"></div>
           {/* Middle Ring */}
-          <div className="absolute inset-4 rounded-full border border-green-cash/10 border-b-green-cash animate-[spin_2s_linear_infinite_reverse]"></div>
+          <div className="absolute inset-3 md:inset-4 rounded-full border border-green-cash/10 border-b-green-cash animate-[spin_2s_linear_infinite_reverse]"></div>
           {/* Inner Logo/Icon */}
-          <div className="w-16 h-16 rounded-full overflow-hidden border border-orange/20 p-1 bg-bbg-surface/80 backdrop-blur-sm shadow-[0_0_20px_rgba(242,100,25,0.15)]">
+          <div className="w-12 h-12 md:w-16 md:h-16 rounded-full overflow-hidden border border-orange/20 p-1 bg-bbg-surface/80 backdrop-blur-sm shadow-[0_0_20px_rgba(242,100,25,0.15)]">
              <img src="/bettingBread-logo.jpg" alt="Logo" className="w-full h-full object-cover rounded-full opacity-80" />
           </div>
         </div>
 
         {/* Text HUD */}
         <div className="text-center animate-fade-up">
-          <h2 className="font-brand text-3xl text-tx tracking-[0.4em] uppercase mb-4 drop-shadow-[0_0_10px_rgba(229,226,225,0.2)]">
+          <h2 className="font-brand text-xl md:text-3xl text-tx tracking-[0.2em] md:tracking-[0.4em] uppercase mb-4 drop-shadow-[0_0_10px_rgba(229,226,225,0.2)] whitespace-nowrap">
             {message}
           </h2>
           <div className="flex items-center justify-center gap-3">

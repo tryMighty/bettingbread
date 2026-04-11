@@ -213,20 +213,20 @@ export default function Dashboard() {
         <PriceTicker />
       </div>
 
-      <nav className="fixed top-[46px] left-0 right-0 z-50 flex items-center justify-center h-20 md:h-[80px] bg-[#050804]/94 backdrop-blur-xl border-b border-br w-full">
-        <div className="w-full max-w-[1200px] mx-auto px-6 md:px-8 flex items-center justify-between">
-          <div onClick={() => navigate('/')} className="flex items-end gap-2.5 hover:opacity-90 transition-opacity cursor-pointer">
-            <div className="w-[22px] h-[22px] rounded-full overflow-hidden border border-orange flex-shrink-0 translate-y-[3px]">
+      <nav className="fixed top-[46px] left-0 right-0 z-50 flex items-center justify-center h-16 md:h-[80px] bg-[#050804]/94 backdrop-blur-xl border-b border-br w-full">
+        <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 flex items-center justify-between gap-2 overflow-hidden">
+          <div onClick={() => navigate('/')} className="flex items-end gap-2 hover:opacity-90 transition-opacity cursor-pointer flex-shrink-0">
+            <div className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-full overflow-hidden border border-orange flex-shrink-0 translate-y-[2px]">
               <img src="/bettingBread-logo.jpg" alt="BettingBread" className="w-full h-full object-cover" />
             </div>
-            <span className="font-brand text-base tracking-[2px] text-green-cash whitespace-nowrap leading-none">
+            <span className="font-brand text-[13px] md:text-base tracking-[1.5px] md:tracking-[2px] text-green-cash whitespace-nowrap leading-none flex-shrink-0">
               BETTING <span className="text-orange">BREAD</span>
             </span>
           </div>
-          <div className="flex items-center gap-6">
-            <button onClick={signOut} className="font-display font-black text-[12px] tracking-[2px] uppercase text-white bg-orange/20 border border-orange/40 hover:bg-orange hover:text-white transition-all px-6 py-2.5 clip-path-lbl flex items-center gap-2">
-              <LogOut size={14} />
-              Sign Out
+          <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
+            <button onClick={signOut} className="font-display font-black text-[9px] md:text-[12px] tracking-[1px] md:tracking-[2px] uppercase text-white bg-orange/20 border border-orange/40 hover:bg-orange hover:text-white transition-all px-3 md:px-6 py-2 md:py-2.5 clip-path-lbl flex items-center gap-2 flex-shrink-0 whitespace-nowrap overflow-hidden">
+              <LogOut size={12} className="shrink-0" />
+              <span className="shrink-0">Sign Out</span>
             </button>
           </div>
         </div>
@@ -261,7 +261,7 @@ export default function Dashboard() {
                       <div className="w-1.5 h-1.5 bg-green-cash rounded-full animate-pulse"></div>
                       <span className="text-[10px] font-black text-green-cash uppercase tracking-[3px]">Authorized Operator</span>
                     </div>
-                    <h2 className="text-4xl md:text-6xl font-brand text-white tracking-tighter uppercase leading-none mb-2">{user?.username}</h2>
+                    <h2 className="text-3xl md:text-6xl font-brand text-white tracking-tighter uppercase leading-none mb-2 break-words">{user?.username}</h2>
                     <span className="text-tx font-display text-[11px] uppercase tracking-[4px] opacity-40">User Node: {user?.discord_id}</span>
                   </div>
                 </div>

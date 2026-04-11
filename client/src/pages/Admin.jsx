@@ -183,20 +183,20 @@ export default function Admin() {
         <PriceTicker />
       </div>
 
-      <nav className="fixed top-[40px] left-0 right-0 z-50 flex justify-center h-20 bg-bbg/95 backdrop-blur-xl border-b border-br w-full">
-        <div className="w-full max-w-[1400px] px-6 md:px-10 flex items-center justify-between">
-          <div onClick={() => navigate('/')} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity cursor-pointer">
-            <div className="w-[20px] h-[20px] rounded-full overflow-hidden border border-orange">
+      <nav className="fixed top-[40px] left-0 right-0 z-50 flex justify-center h-16 md:h-20 bg-bbg/95 backdrop-blur-xl border-b border-br w-full">
+        <div className="w-full max-w-[1400px] px-4 md:px-10 flex items-center justify-between gap-2 overflow-hidden">
+          <div onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer flex-shrink-0">
+            <div className="w-[18px] h-[18px] md:w-[20px] md:h-[20px] rounded-full overflow-hidden border border-orange flex-shrink-0">
               <img src="/bettingBread-logo.jpg" alt="BettingBread" className="w-full h-full object-cover" />
             </div>
-            <span className="font-brand text-sm tracking-[2px] uppercase">
+            <span className="font-brand text-[13px] md:text-sm tracking-[1.5px] md:tracking-[2px] uppercase whitespace-nowrap flex-shrink-0">
               <span className="text-green-cash">BETTING</span> <span className="text-orange">BREAD</span>
             </span>
           </div>
-          <div className="flex items-center gap-6">
-            <button onClick={signOut} className="bg-orange/10 border border-orange/20 text-orange font-display font-bold text-[10px] uppercase tracking-[3px] px-6 py-2.5 rounded shadow-sm hover:bg-orange/20 transition-all flex items-center gap-2">
-              <LogOut size={16} /> 
-              <span>Exit Vault</span>
+          <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
+            <button onClick={signOut} className="bg-orange/10 border border-orange/20 text-orange font-display font-bold text-[9px] md:text-[10px] uppercase tracking-[2px] md:tracking-[3px] px-4 md:px-6 py-2 md:py-2.5 rounded shadow-sm hover:bg-orange/20 transition-all flex items-center gap-2 flex-shrink-0 whitespace-nowrap overflow-hidden">
+              <LogOut size={14} className="shrink-0" /> 
+              <span className="shrink-0">Exit Vault</span>
             </button>
           </div>
         </div>
