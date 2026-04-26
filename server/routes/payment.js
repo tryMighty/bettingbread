@@ -138,32 +138,51 @@ router.post('/create-checkout', isAuthenticated, asyncHandler(async (req, res) =
  * This handler is exported separately to allow mounting with express.raw() in app.js.
  */
 const stripeWebhookHandler = async (req, res) => {
+  console.log('🚨 WEBHOOK HANDLER CALLED');
+  console.log('🚨 Timestamp:', new Date().toISOString());
+  
   const sig = req.headers['stripe-signature'];
+  console.log('🚨 Stripe Signature:', sig ? 'PRESENT' : 'MISSING');
+  
   let event;
 
   try {
+    console.log('🚨 Attempting to construct event from webhook...');
     // Note: We use req.body directly because express.raw() is configured in app.js for this path
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    console.log('✅ Event constructed successfully:', event.type, 'ID:', event.id);
   } catch (err) {
+    console.log('❌ Webhook signature verification FAILED:', err.message);
     logger.warn('Stripe Webhook signature verification failed', { error: err.message, ip: req.ip });
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   const { type, data } = event;
+  console.log('🎯 Processing webhook event type:', type);
   logger.info(`Received Stripe Webhook: ${type}`, { event_id: event.id });
 
   try {
     switch (type) {
       case 'checkout.session.completed': {
+        console.log('💰 Processing checkout.session.completed');
         const session = data.object;
+        console.log('📦 Session ID:', session.id);
+        console.log('📦 Session metadata:', JSON.stringify(session.metadata));
+        
         const { discord_id, tier } = session.metadata;
+        console.log('👤 Discord ID:', discord_id);
+        console.log('🎫 Tier:', tier);
+        
         const customerId = session.customer;
         const subscriptionId = session.subscription || null;
         const expiry = calculateExpiry(tier);
+        
+        console.log('🔄 Starting database transaction...');
 
         const client = await pool.connect();
         try {
           await client.query('BEGIN');
+          console.log('✅ Transaction started');
 
           // Update/Insert Membership
           await client.query(`
@@ -177,43 +196,54 @@ const stripeWebhookHandler = async (req, res) => {
               status = 'active',
               updated_at = now()
           `, [discord_id, tier, customerId, subscriptionId, expiry]);
+          console.log('✅ Membership record updated');
 
           // Log Transaction
           await client.query(`
             INSERT INTO transactions (discord_id, stripe_session_id, amount_total, currency, tier, status)
             VALUES ($1, $2, $3, $4, $5, 'complete')
           `, [discord_id, session.id, session.amount_total, session.currency, tier]);
+          console.log('✅ Transaction logged');
 
           // Log Audit Event
           await client.query(`
             INSERT INTO audit_logs (discord_id, event_type, tier, description)
             VALUES ($1, 'purchase', $2, 'User initial purchase completed via Stripe')
           `, [discord_id, tier]);
+          console.log('✅ Audit log created');
 
           await client.query('COMMIT');
+          console.log('✅ Database transaction committed');
           
           // Grant Discord Role
+          console.log('🤖 Attempting to grant Discord role...');
           await grantRole(discord_id);
+          console.log('✅ Discord role granted successfully');
           
           logger.info('Checkout session processed and role granted', { discord_id, tier, session_id: session.id });
         } catch (err) {
+          console.log('❌ Error in transaction, rolling back:', err.message);
           await client.query('ROLLBACK');
           throw err;
         } finally {
           client.release();
+          console.log('🔓 Database connection released');
         }
         break;
       }
 
       case 'invoice.payment_succeeded': {
+        console.log('💳 Processing invoice.payment_succeeded');
         const invoice = data.object;
         // invoice.subscription will be present for recurring payments
         if (invoice.subscription) {
+          console.log('🔄 Subscription renewal detected');
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
           const { discord_id, tier } = subscription.metadata;
           const expiry = calculateExpiry(tier);
 
           if (discord_id) {
+            console.log('👤 Renewing for Discord ID:', discord_id);
             await pool.query('BEGIN');
             
             await pool.query(`
@@ -230,7 +260,9 @@ const stripeWebhookHandler = async (req, res) => {
             await pool.query('COMMIT');
             
             // Ensure they have the role
+            console.log('🤖 Ensuring Discord role is granted...');
             await grantRole(discord_id);
+            console.log('✅ Subscription renewed and role confirmed');
             
             logger.info('Subscription renewal processed', { discord_id, subscription_id: invoice.subscription });
           }
@@ -239,6 +271,7 @@ const stripeWebhookHandler = async (req, res) => {
       }
 
       case 'invoice.payment_failed': {
+        console.log('⚠️ Processing invoice.payment_failed');
         const invoice = data.object;
         logger.warn('Subscription payment failed', { 
           subscription_id: invoice.subscription, 
@@ -252,6 +285,7 @@ const stripeWebhookHandler = async (req, res) => {
       }
 
       case 'customer.subscription.deleted': {
+        console.log('🚫 Processing customer.subscription.deleted');
         const subscription = data.object;
         const { rows } = await pool.query(
           'SELECT discord_id, tier FROM memberships WHERE stripe_subscription_id = $1', 
@@ -260,6 +294,7 @@ const stripeWebhookHandler = async (req, res) => {
         
         if (rows.length > 0) {
           const { discord_id, tier } = rows[0];
+          console.log('👤 Cancelling for Discord ID:', discord_id);
           
           await pool.query('BEGIN');
           await pool.query(`
@@ -275,7 +310,9 @@ const stripeWebhookHandler = async (req, res) => {
           await pool.query('COMMIT');
           
           // Revoke Discord Role
+          console.log('🤖 Revoking Discord role...');
           await revokeRole(discord_id);
+          console.log('✅ Subscription cancelled and role revoked');
           
           logger.info('Subscription cancelled and role revoked', { discord_id, subscription_id: subscription.id });
         }
@@ -283,9 +320,12 @@ const stripeWebhookHandler = async (req, res) => {
       }
 
       default:
+        console.log('ℹ️ Unhandled event type:', type);
         logger.info(`Unhandled Stripe Webhook Event Type: ${type}`);
     }
   } catch (err) {
+    console.log('💥 ERROR processing webhook:', err.message);
+    console.log('💥 Stack trace:', err.stack);
     logger.error(`Error processing Stripe Webhook event: ${type}`, { 
       error: err.message, 
       stack: err.stack,
@@ -304,8 +344,8 @@ const stripeWebhookHandler = async (req, res) => {
     }
   }
 
+  console.log('✅ Webhook processing complete, sending 200 response');
   res.json({ received: true });
 };
-
 module.exports = { router, stripeWebhookHandler };
 
